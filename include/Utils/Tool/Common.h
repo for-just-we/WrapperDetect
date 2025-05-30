@@ -28,6 +28,8 @@ string replaceAll(string str, const string& from, const string& to);
 
 bool CmpFirst(const string& str, const string target);
 
+void log(const string& file, const vector<string>& curLogs);
+
 #define OP errs()
 #define DBG if (debug_mode) OP
 

@@ -21,11 +21,12 @@ private:
 public:
     string SummarizingTemplate;
     LLMAnalyzer* llmAnalyzer;
+    string logDir;
 
     IntraAWDPass(GlobalContext* GCtx_, unordered_map<string, FunctionInfo>& _sourceInfos, string _summarizingTemplate,
-                 LLMAnalyzer* _analyzer, string _intraSysPrompt = "", string _intraUserPrompt = ""):
+                 LLMAnalyzer* _analyzer, string _intraSysPrompt = "", string _intraUserPrompt = "", string _logDir = ""):
         EHAWDPass(GCtx_), sourceInfos(_sourceInfos), SummarizingTemplate(_summarizingTemplate), llmAnalyzer(_analyzer),
-        IntraSysPrompt(_intraSysPrompt), IntraUserTemplate(_intraUserPrompt)
+        IntraSysPrompt(_intraSysPrompt), IntraUserTemplate(_intraUserPrompt), logDir(_logDir)
         {
         ID = "LLM-enhanced simple alloc wrapper detection pass";
     }

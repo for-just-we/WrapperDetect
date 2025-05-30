@@ -5,8 +5,6 @@
 #include "Utils/Tool/Common.h"
 #include <chrono>
 #include <iostream>
-#include <fstream>
-#include <filesystem> // C++17
 
 string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<string>& curLogs) {
     json payload = {
@@ -59,10 +57,8 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
 }
 
 
-bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string SummarizingTemplate) {
-    vector<string> curLogs;
+bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string SummarizingTemplate, vector<string>& curLogs) {
     unsigned yesTime = 0;
-
     curLogs.emplace_back("*********query**************\n" + UserPrompt + "\n");
     for (unsigned i = 0; i < voteTime; ++i) {
         string content = queryLLM(SysPrompt, UserPrompt, curLogs);
@@ -82,44 +78,7 @@ bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string Summari
         if (CmpFirst(content, "yes"))
             yesTime += 1;
     }
-
     bool isSimple = yesTime > (voteTime / 2);
-
-    // log LLM response
-    if (!logDir.empty()) {
-        curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
-        string file = "cout";
-        if (logDir != "cout") {
-            int existingFiles = 0;
-            for (const auto& entry: filesystem::directory_iterator(logDir)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".txt")
-                    existingFiles++;
-            }
-            file = logDir + "/" + to_string(existingFiles + 1) + ".txt";
-        }
-        log(file, curLogs);
-    }
-
+    curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
     return isSimple;
-}
-
-
-void LLMAnalyzer::log(const string& file, const vector<string>& curLogs) {
-    auto writeLogs = [&](auto &out) {
-        for (size_t i = 0; i < curLogs.size(); ++i) {
-            out << curLogs[i];
-            if (i != curLogs.size() - 1)
-                out << "\n";
-        }
-    };
-
-    if (file == "cout")
-        writeLogs(cout);
-    else {
-        ofstream outFile(file, ios::app);
-        if (outFile)
-            writeLogs(outFile);
-        else
-            cerr << "Error: Unable to open file " << file << " for writing." << endl;
-    }
 }

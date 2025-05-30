@@ -9,7 +9,7 @@
 #include "Utils/Basic/Tarjan.h"
 #include "Utils/Tool/Common.h"
 #include <queue>
-
+#include <filesystem>
 
 bool IntraAWDPass::doModulePass(Module* M) {
     // analyze strong connected component
@@ -140,7 +140,23 @@ bool IntraAWDPass::doModulePass(Module* M) {
                         userPrompt = replaceAll(userPrompt, "{preprocessed}", preprocessed_text);
                         userPrompt = replaceAll(userPrompt, "{side_effects}", sideEffectCalledStr);
                         userPrompt = replaceAll(userPrompt, "{function_code}", code);
-                        isSimple = llmAnalyzer->classify(IntraSysPrompt, userPrompt, SummarizingTemplate);
+                        vector<string> curLogs;
+                        curLogs.emplace_back("key: " + key);
+                        isSimple = llmAnalyzer->classify(IntraSysPrompt, userPrompt, SummarizingTemplate, curLogs);
+
+                        if (!logDir.empty()) {
+                            curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
+                            string file = "cout";
+                            if (logDir != "cout") {
+                                int existingFiles = 0;
+                                for (const auto& entry: filesystem::directory_iterator(logDir)) {
+                                    if (entry.is_regular_file() && entry.path().extension() == ".txt")
+                                        existingFiles++;
+                                }
+                                file = logDir + "/" + to_string(existingFiles + 1) + ".txt";
+                            }
+                            log(file, curLogs);
+                        }
                     }
 
                     if (!isSimple)

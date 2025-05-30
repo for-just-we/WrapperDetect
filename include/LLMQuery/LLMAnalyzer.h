@@ -25,10 +25,9 @@ public:
     unsigned totalOutputTokenNum = 0;
     unsigned retry;
     unsigned voteTime;
-    string logDir;
 
     explicit LLMAnalyzer(const string& addr, float _temparature = -1, unsigned _retry = 3, unsigned _vote = 5, string _logDir = ""):
-        temperature(_temparature), retry(_retry), voteTime(_vote), logDir(_logDir) {
+        temperature(_temparature), retry(_retry), voteTime(_vote) {
         string base_url = "http://" + addr + "/v1";
         string check_model_url = base_url + "/models";
         query_url = base_url + "/chat/completions";
@@ -44,9 +43,7 @@ public:
 
     string queryLLM(string& SysPrompt, string& UserPrompt, vector<string>& curLogs);
 
-    bool classify(string& SysPrompt, string& UserPrompt, string SummarizingTemplate);
-
-    static void log(const string& file, const vector<string>& curLogs);
+    bool classify(string& SysPrompt, string& UserPrompt, string SummarizingTemplate, vector<string>& curLogs);
 };
 
 #endif //WRAPPERDETECT_LLMANALYZER_H

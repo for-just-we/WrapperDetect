@@ -242,12 +242,12 @@ int main(int argc, char** argv) {
     unordered_map<string, FunctionInfo> sourceInfos = parseSourceFileInfo(SouceCodeInfoFile);
     OP << "parse source info done\n";
 
-    auto llmAnalyzer = new LLMAnalyzer(Address, Temperature, RetryTime, VoteTime, LogDir);
+    auto llmAnalyzer = new LLMAnalyzer(Address, Temperature, RetryTime, VoteTime);
 
     debug_mode = DebugMode;
     max_type_layer = MaxTypeLayer;
 
-    steady_clock::time_point start = high_resolution_clock::now();
+    auto start = high_resolution_clock::now();
     CallGraphPass* CGPass;
     // 进行indirect-call分析
     if (ICallAnalysisType == 1)
@@ -264,7 +264,7 @@ int main(int argc, char** argv) {
     }
     CGPass->run(GlobalCtx.Modules);
     delete CGPass;
-    steady_clock::time_point end = high_resolution_clock::now();
+    auto end = high_resolution_clock::now();
     seconds duration = duration_cast<seconds>(end - start);
     OP << "indirect call analysis spent: " << duration.count() << " seconds\n";
 
@@ -272,7 +272,7 @@ int main(int argc, char** argv) {
     AWDPass* WDPass;
     if (WrapperAnalysisType == 1)
         WDPass = new IntraAWDPass(&GlobalCtx, sourceInfos, jsonData["summarizing"], llmAnalyzer,
-                                  jsonData["intra_sys"], jsonData["intra_user"]);
+                                  jsonData["intra_sys"], jsonData["intra_user"], LogDir);
     else {
         cout << "unimplemnted wrapper analysis type, break\n";
         return 0;
@@ -283,6 +283,10 @@ int main(int argc, char** argv) {
     end = high_resolution_clock::now();
     duration = duration_cast<seconds>(end - start);
     OP << "alloc wrapper analysis spent: " << duration.count() << " seconds\n";
+
+    OP << "LLM Spend: " << llmAnalyzer->totalLLMTime << ", input tokens: " <<
+        llmAnalyzer->totalInputTokenNum << ", output tokens: " << llmAnalyzer->totalOutputTokenNum <<
+        ", query num: " << llmAnalyzer->totalQueryNum << "\n";
 
     // 打印分析结果
     PrintResults(&GlobalCtx);

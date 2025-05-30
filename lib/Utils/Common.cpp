@@ -14,6 +14,8 @@
 #include <regex>
 #include <utility>
 #include <sstream>
+#include <iostream>
+#include <fstream>
 
 #include "Utils/Tool/Common.h"
 
@@ -325,4 +327,25 @@ bool CmpFirst(const string& str, const string target) {
                    [](unsigned char c) { return std::tolower(c); });
     // 比较是否等于 "yes"
     return lower_first_part == target;
+}
+
+
+void log(const string& file, const vector<string>& curLogs) {
+    auto writeLogs = [&](auto &out) {
+        for (size_t i = 0; i < curLogs.size(); ++i) {
+            out << curLogs[i];
+            if (i != curLogs.size() - 1)
+                out << "\n";
+        }
+    };
+
+    if (file == "cout")
+        writeLogs(cout);
+    else {
+        ofstream outFile(file, ios::app);
+        if (outFile)
+            writeLogs(outFile);
+        else
+            cerr << "Error: Unable to open file " << file << " for writing." << endl;
+    }
 }
