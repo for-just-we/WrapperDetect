@@ -19,4 +19,4 @@ else()
     target_link_libraries(WDLib ${llvm_libs} CURL::libcurl)
 endif()
 
-install(TARGETS WDLib LIBRARY DESTINATION ${CMAKE_BINARY_DIR}/lib)
+install(TARGETS WDLib LIBRARY DESTINATION lib)
