@@ -36,7 +36,7 @@ unordered_map<string, FunctionInfo> parseSourceFileInfo(const string &sourceFile
 
         Optional<StringRef> codeVal = obj->getString("code");
         Optional<StringRef> fileVal = obj->getString("file");
-        Optional<long long> lineVal = obj->getInteger("line");
+        Optional<int64_t> lineVal = obj->getInteger("line");
         Optional<StringRef> nameVal = obj->getString("name");
         Optional<StringRef> preVal  = obj->getString("preprocessed_code");
 
