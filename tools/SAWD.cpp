@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
 
     debug_mode = DebugMode;
     max_type_layer = MaxTypeLayer;
-    steady_clock::time_point start = high_resolution_clock::now();
+    auto start = high_resolution_clock::now();
     CallGraphPass* CGPass;
     // 进行indirect-call分析
     if (ICallAnalysisType == 1)
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
     }
     CGPass->run(GlobalCtx.Modules);
     delete CGPass;
-    steady_clock::time_point end = high_resolution_clock::now();
+    auto end = high_resolution_clock::now();
     seconds duration = duration_cast<seconds>(end - start);
     OP << "indirect call analysis spent: " << duration.count() << " seconds\n";
 
