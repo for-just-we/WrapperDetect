@@ -63,10 +63,10 @@ else()
 endif()
 
 ## ZSTD
-if(DEFINED ZSTD_PATH)
-    message("searching ZSTD in: ${ZSTD_PATH}")
+if(DEFINED ZSTD_ROOT)
+    message("searching ZSTD in: ${ZSTD_ROOT}")
     # If ZSTD_PATH is defined, look for zstd in that directory
-    find_library(ZSTD_LIBRARIES NAMES zstd HINTS ${ZSTD_PATH}/lib)
+    find_library(ZSTD_LIBRARIES NAMES zstd HINTS ${ZSTD_ROOT}/lib)
 else()
     # If ZSTD_PATH is not defined, look for zstd in system paths
     find_library(ZSTD_LIBRARIES NAMES zstd)
