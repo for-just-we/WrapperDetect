@@ -83,8 +83,11 @@ bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string Summari
             yesTime += 1;
     }
 
+    bool isSimple = yesTime > (voteTime / 2);
+
     // log LLM response
     if (!logDir.empty()) {
+        curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
         string file = "cout";
         if (logDir != "cout") {
             int existingFiles = 0;
@@ -97,7 +100,7 @@ bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string Summari
         log(file, curLogs);
     }
 
-    return yesTime > (voteTime / 2);
+    return isSimple;
 }
 
 
