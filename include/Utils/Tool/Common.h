@@ -20,7 +20,7 @@ string removeFuncNumberSuffix(const string& funcName);
 
 string getNormalizedPath(const DISubprogram *DIS);
 
-void dumpAllocationWrapperInfo(const map<Function*, const set<CallInst*>>& function2AllocCalls, GlobalContext* Ctx);
+void dumpAllocationWrapperInfo(map<Function*, set<CallInst*>>& function2AllocCalls, GlobalContext* Ctx, string file);
 
 string strip(const string& s);
 

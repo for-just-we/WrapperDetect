@@ -266,7 +266,20 @@ string getNormalizedPath(const DISubprogram *DIS) {
     return fullPath.str().str();
 }
 
-void dumpAllocationWrapperInfo(const map<Function*, const set<CallInst*>>& function2AllocCalls, GlobalContext* Ctx) {
+void dumpAllocationWrapperInfo(map<Function*, set<CallInst*>>& function2AllocCalls, GlobalContext* Ctx,
+                               string file) {
+    std::ostream* out;
+    std::ofstream ofs;
+    if (file == "cout") {
+        out = &std::cout;
+    } else {
+        ofs.open(file);
+        if (!ofs.is_open()) {
+            std::cerr << "Error: Cannot open file " << file << " for writing.\n";
+            return;
+        }
+        out = &ofs;
+    }
     for (auto iter: function2AllocCalls) {
         string funcName = removeFuncNumberSuffix(iter.first->getName().str());
         unsigned line = iter.first->getSubprogram()->getLine();
@@ -284,10 +297,13 @@ void dumpAllocationWrapperInfo(const map<Function*, const set<CallInst*>>& funct
                              R"(, "fl": ")" + CI->getDebugLoc()->getFilename().str() + "\" }+";
             for (Function* _Callee: Ctx->Callees[CI]) {
                 string callKey = callLoc + removeFuncNumberSuffix(_Callee->getName().str());
-                OP << funcKey << "|" << callKey << "\n";
+                *out << funcKey << "|" << callKey << "\n";
             }
         }
     }
+
+    if (ofs.is_open())
+        ofs.close();
 }
 
 

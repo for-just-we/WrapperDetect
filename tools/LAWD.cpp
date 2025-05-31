@@ -122,6 +122,12 @@ cl::opt<string> LogDir(
         cl::init("cout")
         );
 
+cl::opt<string> WrapperInfoFile(
+        "wrapper-info",
+        cl::desc("log wrapper information"),
+        cl::init("")
+        );
+
 GlobalContext GlobalCtx;
 
 
@@ -269,7 +275,7 @@ int main(int argc, char** argv) {
     OP << "indirect call analysis spent: " << duration.count() << " seconds\n";
 
     start = high_resolution_clock::now();
-    AWDPass* WDPass;
+    HAWDPass* WDPass;
     if (WrapperAnalysisType == 1)
         WDPass = new IntraAWDPass(&GlobalCtx, sourceInfos, jsonData["summarizing"], llmAnalyzer,
                                   jsonData["intra_sys"], jsonData["intra_user"], LogDir);
@@ -279,6 +285,9 @@ int main(int argc, char** argv) {
     }
 
     WDPass->run(GlobalCtx.Modules);
+    if (!WrapperInfoFile.empty())
+        dumpAllocationWrapperInfo(WDPass->function2AllocCalls, &GlobalCtx, WrapperInfoFile);
+
     delete WDPass;
     end = high_resolution_clock::now();
     duration = duration_cast<seconds>(end - start);
