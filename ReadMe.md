@@ -4,15 +4,15 @@ The implementation of indirect-call analysis is the same as in [IndirectCallAnal
 
 The input to this project is single LLVM IR bitcode file. We use option `-g -Xclang -no-opaque-pointers -Xclang -disable-O0-optnone` for compilation and then use `mem2reg` to optimize.
 
-| project | program | simple detection | heuristic detection | LLM + heuristic detection |
+| project | program | simple detection | heuristic detection | Intra-LLM |
 | ---- | ---- | ---- | ---- | ---- |
-| bash-5.2 | bash | 449 | 3 | Nan |
+| bash-5.2 | bash | 449 | 3 | 65 |
 | git-2.47.0 | git | 384 | 3 | Nan |
-| htop-3.3.0 | htop | 64 | 7 | Nan |
+| htop-3.3.0 | htop | 64 | 7 | 10 |
 | nanomq-0.22.10 | nanomq | 155 | 21 | Nan |
 | nanomq-0.22.10 | nanomq_cli | 95 | 14 | Nan |
 | nanomq-0.22.10 | nngcat | 49 | 4 | Nan |
-| nasm-2.16.03 | nasm | 67 | 20 | Nan |
+| nasm-2.16.03 | nasm | 67 | 20 | 20 |
 | nasm-2.16.03 | ndisasm | 8 | 7 | Nan |
 | openssl-3.4.0 | openssl | 1866 | 1 | Nan |
 | perl-5.4.0 | perl | 204 | 3 | Nan |

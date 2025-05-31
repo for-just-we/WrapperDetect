@@ -145,7 +145,6 @@ bool IntraAWDPass::doModulePass(Module* M) {
                         isSimple = llmAnalyzer->classify(IntraSysPrompt, userPrompt, SummarizingTemplate, curLogs);
 
                         if (!logDir.empty()) {
-                            curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
                             string file = "cout";
                             if (logDir != "cout") {
                                 int existingFiles = 0;

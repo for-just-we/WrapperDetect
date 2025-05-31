@@ -59,26 +59,34 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
 
 bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string SummarizingTemplate, vector<string>& curLogs) {
     unsigned yesTime = 0;
+    unsigned noTime = 0;
+    unsigned requiredTime = voteTime / 2;
     curLogs.emplace_back("*********query**************\n" + UserPrompt + "\n");
     for (unsigned i = 0; i < voteTime; ++i) {
         string content = queryLLM(SysPrompt, UserPrompt, curLogs);
         if (CmpFirst(content, "yes")) {
-            yesTime += 1;
+            yesTime++;
             continue;
         }
-        else if (CmpFirst(content, "no"))
+        else if (CmpFirst(content, "no")) {
+            noTime++;
             continue;
+        }
 
         SummarizingTemplate = replaceAll(SummarizingTemplate, "{answer}", content);
         // summarize the results
         string empty;
-
         curLogs.emplace_back("*********summarizing**************:\n" + content + "\n");
         content = queryLLM(empty, content, curLogs);
         if (CmpFirst(content, "yes"))
-            yesTime += 1;
+            yesTime++;
+        else
+            noTime++;
+
+        if (yesTime > requiredTime || noTime > requiredTime)
+            break;
     }
-    bool isSimple = yesTime > (voteTime / 2);
+    bool isSimple = yesTime > requiredTime;
     curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
     return isSimple;
 }
