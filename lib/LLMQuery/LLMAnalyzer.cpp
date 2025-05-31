@@ -38,7 +38,7 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
         string totalLog;
         totalLog.append("************response*************\n");
         totalLog.append(content);
-        totalLog.append("************reasoning****************\n");
+        totalLog.append("\n************reasoning****************\n");
         totalLog.append(reasoning);
         totalLog.append("\n");
 

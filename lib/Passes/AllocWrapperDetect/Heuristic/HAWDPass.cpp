@@ -29,7 +29,7 @@ bool HAWDPass::doInitialization(Module* M) {
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // if call to malloc
             if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
-                Function* CF = CI->getCalledFunction();
+                Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 if (CF && allocFuncsNames.count(CF->getName().str())) {
                     function2AllocCalls[F].insert(CI);
                     continue;
@@ -122,7 +122,7 @@ bool HAWDPass::analyzeReturn(ReturnInst* RI, set<CallInst*>& visitAllocCalls) {
 
         else if (isa<CallInst>(curV)) {
             CallInst* CI = dyn_cast<CallInst>(curV);
-            Function* CF = CI->getCalledFunction();
+            Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
             if (visitAllocCalls.count(CI))
                 continue;
             else if (CF) {
@@ -186,7 +186,7 @@ void HAWDPass::identifySideEffectFunctions() {
                 }
 
                 else if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
-                    Function* Callee = CI->getCalledFunction();
+                    Function* Callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
                     // recursive call, skip
                     if (Callee == F)
                         continue;
@@ -334,6 +334,8 @@ void HAWDPass::processPotentialAllocs(Function* F, set<CallInst*>& potentialAllo
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction* I = &*i;
         if (CallInst* CI = dyn_cast<CallInst>(I)) {
+            if (CI->getCalledFunction() && CI->getCalledFunction()->isIntrinsic())
+                continue;
             bool selfCall = true;
             for (Function* _Callee: Ctx->Callees[CI]) {
                 if (_Callee != F) {

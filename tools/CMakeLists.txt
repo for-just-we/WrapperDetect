@@ -15,3 +15,4 @@ endfunction()
 
 add_executable_with_props(sawd SAWD.cpp)
 add_executable_with_props(lawd LAWD.cpp)
+add_executable_with_props(dbgawd Debug.cpp)

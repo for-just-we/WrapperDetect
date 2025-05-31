@@ -24,7 +24,7 @@ bool CallGraphPass::doInitialization(Module* M) {
                 CallSet.insert(CI);
                 if (CI->isIndirectCall())
                     continue;
-                Function* CF = CI->getCalledFunction();
+                Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 // not InlineAsm
                 if (CF) {
                     // Call external functions
@@ -192,7 +192,7 @@ void CallGraphPass::unrollLoops(Function* F) {
 bool CallGraphPass::isVirtualCall(CallInst* CI) {
     // the callsite must be an indirect one with at least one argument (this
     // ptr)
-    if (CI->getCalledFunction() != nullptr || CI->arg_empty())
+    if (CommonUtil::getBaseFunction(CI->getCalledOperand()) != nullptr || CI->arg_empty())
         return false;
 
     // the first argument (this pointer) must be a pointer type and must be a

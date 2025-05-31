@@ -16,7 +16,7 @@ public:
     map<Function*, set<pair<Instruction*, SideEffectType>>> func2SideEffectOps;
 
     EHAWDPass(GlobalContext* GCtx_): HAWDPass(GCtx_) {
-        ID = "LLM-enhancedsimple alloc wrapper detection pass";
+        ID = "simple alloc wrapper detection pass version2";
     }
 
     void identifySideEffectFunctions() override;

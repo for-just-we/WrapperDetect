@@ -349,3 +349,19 @@ void log(const string& file, const vector<string>& curLogs) {
             cerr << "Error: Unable to open file " << file << " for writing." << endl;
     }
 }
+
+
+Function* CommonUtil::getBaseFunction(Value *V) {
+    if (Function *F = dyn_cast<Function>(V))
+        if (!F->isIntrinsic())
+            return F;
+    Value *CV = V;
+    while (BitCastOperator *BCO = dyn_cast<BitCastOperator>(CV)) {
+        Value* O = BCO->getOperand(0);
+        if (Function *F = dyn_cast<Function>(O))
+            if (!F->isIntrinsic())
+                return F;
+        CV = O;
+    }
+    return NULL;
+}

@@ -101,7 +101,7 @@ bool MLTADFPass::resolveSFP(Value* User, Value* V, set<Function*>& callees,
         // handle recursive call
         Function* curF = CI->getFunction();
         visitedFuncs.insert(curF);
-        Function* CF = CI->getCalledFunction();
+        Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
         if (!CF)
             return false;
         if (CF->isDeclaration())

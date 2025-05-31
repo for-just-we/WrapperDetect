@@ -24,7 +24,7 @@ bool BUAWDPass::doInitialization(Module* M) {
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // if call to malloc
             if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
-                Function* CF = CI->getCalledFunction();
+                Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 if (CF && allocFuncsNames.count(CF->getName().str())) {
                     function2AllocCalls[F].insert(CI);
                     continue;

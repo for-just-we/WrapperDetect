@@ -41,6 +41,8 @@ public:
 
     // 从所有模块加载结构体信息，初始化使用
     static void LoadElementsStructNameMap(vector<pair<Module*, StringRef>> &Modules);
+
+    static Function* getBaseFunction(Value* V);
 };
 
 // 保存中间及最终结果的结构体

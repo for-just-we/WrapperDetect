@@ -29,7 +29,7 @@ void EHAWDPass::identifySideEffectFunctions() {
                 }
 
                 else if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
-                    Function* Callee = CI->getCalledFunction();
+                    Function* Callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
                     // recursive call, skip
                     if (Callee == F)
                         continue;
@@ -171,7 +171,6 @@ bool EHAWDPass::doModulePass(Module* M) {
     }
     return false;
 }
-
 
 bool EHAWDPass::checkSimpleAlloc(Function* F, bool &simpleRet, set<CallInst*>& potentialAllocs) {
     bool operateGlob = false;

@@ -1,24 +1,64 @@
 //
-// Created by prophe cheng on 2025/5/16.
+// Created by prophe cheng on 2025/5/31.
 //
+
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 
-#include "Passes/AllocWrapperDetect/LLM/IntraAWDPass.h"
+#include "Passes/AllocWrapperDetect/Debug/DebugPass.h"
 #include "Utils/Basic/Tarjan.h"
 #include "Utils/Tool/Common.h"
 #include <queue>
-#include <filesystem>
 
-bool IntraAWDPass::doModulePass(Module* M) {
+
+bool DebugPass::doInitialization(Module* M) {
+    for (Function &F : *M) {
+        if (F.isDeclaration())
+            continue;
+        if (allocFuncsNames.count(F.getName().str()))
+            allocFuncsNames.erase(F.getName().str());
+    }
+
+    // collect malloc sources
+    for (auto &f: *M) {
+        Function *F = &f;
+        if (F->isDeclaration())
+            continue;
+        for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
+            // if call to malloc
+            if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+                Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
+                if (CF && (allocFuncsNames.count(CF->getName().str()) || preAnalyzedWrappers.count(CF))) {
+                    function2AllocCalls[F].insert(CI);
+                    continue;
+                }
+
+                // indirect-call
+                if (CI->isIndirectCall()) {
+                    for (Function* callee: Ctx->Callees[CI]) {
+                        if (allocFuncsNames.count(callee->getName().str())) {
+                            function2AllocCalls[F].insert(CI);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool DebugPass::doModulePass(Module *M) {
     // analyze strong connected component
     Tarjan tarjan(Ctx->CallMaps);
     tarjan.getSCC(Ctx->SCC);
     // first identify side-effect functions
     identifySideEffectFunctions();
+
+    set<string> interestingFuncs = {"evp_md_ctx_new_ex"};
     // identify simple allocation wrappers
-    set<string> visitedKeys;
+
     for (vector<Function*> sc: Ctx->SCC) {
         queue<Function*> worklist;
         set<Function*> inWorklist;
@@ -32,6 +72,17 @@ bool IntraAWDPass::doModulePass(Module* M) {
             Function* F = worklist.front();
             worklist.pop();
             inWorklist.erase(F);
+
+            if (preAnalyzedWrappers.count(F))
+                continue;
+
+            if (interestingFuncs.count(removeFuncNumberSuffix(F->getName().str()))) {
+                for (auto iter: func2SideEffectOps[F]) {
+                    OP << iter.second << " ," << getInstructionText(iter.first) << "\n";
+                    if (CallInst* _CI = dyn_cast<CallInst>(iter.first))
+                        OP << "indirect-call: " << _CI->isIndirectCall() << "\n";
+                }
+            }
 
             bool isAlloc = false;
             bool everyAllocReturned = true;
@@ -54,20 +105,6 @@ bool IntraAWDPass::doModulePass(Module* M) {
                 // generate query for LLM
                 string fileName = getNormalizedPath(F->getSubprogram());
                 string funcName = removeFuncNumberSuffix(F->getName().str());
-                string key = extractKey(fileName, F->getSubprogram()->getLine(), funcName);
-                FunctionInfo info;
-                if (sourceInfos.count(key))
-                    info = sourceInfos[key];
-                else {
-                    key = extractKey(fileName, F->getSubprogram()->getLine() - 1, funcName);
-                    if (!sourceInfos.count(key))
-                        continue;
-                    info = sourceInfos[key];
-                }
-
-                if (visitedKeys.count(key))
-                    continue;
-                visitedKeys.insert(key);
 
                 // count side-effect instructions
                 bool sideEffectIgnorable = true;
@@ -75,6 +112,12 @@ bool IntraAWDPass::doModulePass(Module* M) {
                 set<string> sideEffectCalled;
                 set<string> directAllocCalled;
                 set<string> indirectAllocCalled;
+
+                if (interestingFuncs.count(removeFuncNumberSuffix(F->getName().str()))) {
+                    for (CallInst* _CI: potentialAllocs)
+                        OP << "potential call: " << getInstructionText(_CI) << "\n";
+                }
+
                 // traverse every side-effect instruction
                 for (pair<Instruction*, SideEffectType> sideEffect: func2SideEffectOps[F]) {
                     if (sideEffect.second == SideEffectType::Store) {
@@ -95,6 +138,7 @@ bool IntraAWDPass::doModulePass(Module* M) {
                                 break;
                             }
                         }
+
                         if (!allArgSimpleType || operateGlob) {
                             sideEffectIgnorable = false;
                             Function* sideEffectCallee = CommonUtil::getBaseFunction(CI->getCalledOperand());
@@ -110,13 +154,6 @@ bool IntraAWDPass::doModulePass(Module* M) {
                     bool isSimple = false;
                     if (llmEnable) {
                         string code;
-                        bool preprocessed = false;
-                        if (!info.second.empty()) {
-                            preprocessed = true;
-                            code = info.second;
-                        }
-                        else
-                            code = info.first;
                         string sideEffectCalledStr;
                         for (const string& _funcName: sideEffectCalled)
                             sideEffectCalledStr += (_funcName + ",");
@@ -134,28 +171,6 @@ bool IntraAWDPass::doModulePass(Module* M) {
                             }
                         }
 
-                        string preprocessed_text =  preprocessed ? "preprocessed " : "";
-                        string userPrompt = IntraUserTemplate;
-                        userPrompt = replaceAll(userPrompt, "{function_name}", funcName);
-                        userPrompt = replaceAll(userPrompt, "{preprocessed}", preprocessed_text);
-                        userPrompt = replaceAll(userPrompt, "{side_effects}", sideEffectCalledStr);
-                        userPrompt = replaceAll(userPrompt, "{function_code}", code);
-                        vector<string> curLogs;
-                        curLogs.emplace_back("key: " + key);
-                        isSimple = llmAnalyzer->classify(IntraSysPrompt, userPrompt, SummarizingTemplate, curLogs);
-
-                        if (!logDir.empty()) {
-                            string file = "cout";
-                            if (logDir != "cout") {
-                                int existingFiles = 0;
-                                for (const auto& entry: filesystem::directory_iterator(logDir)) {
-                                    if (entry.is_regular_file() && entry.path().extension() == ".txt")
-                                        existingFiles++;
-                                }
-                                file = logDir + "/" + to_string(existingFiles + 1) + ".txt";
-                            }
-                            log(file, curLogs);
-                        }
                     }
 
                     if (!isSimple)
@@ -168,5 +183,6 @@ bool IntraAWDPass::doModulePass(Module* M) {
             promoteToCaller(F, visitedAllocCalls, worklist, inWorklist);
         }
     }
+
     return false;
 }

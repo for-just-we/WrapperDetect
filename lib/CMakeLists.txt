@@ -3,6 +3,7 @@ file (GLOB SOURCES
         Passes/CallGraph/*.cpp
         Passes/AllocWrapperDetect/Heuristic/*.cpp
         Passes/AllocWrapperDetect/LLM/*.cpp
+        Passes/AllocWrapperDetect/Debug/*.cpp
         Utils/*.cpp
         LLMQuery/*.cpp)
 

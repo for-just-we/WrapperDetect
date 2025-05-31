@@ -417,7 +417,7 @@ bool MLTAPass::typeConfineInFunction(Function *F) {
             // 访问所有参数包含了函数指针的函数调用
         else if (CallInst *CI = dyn_cast<CallInst>(I)) {
             // 访问实参
-            Function* CF = CI->getCalledFunction(); // CF为被调用的函数
+            Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand()); // CF为被调用的函数
             for (User::op_iterator OI = CI->op_begin(), OE = CI->op_end(); OI != OE; ++OI) {
                 // 如果该参数为函数指针
                 if (Function* FF = dyn_cast<Function>(*OI)) { // 如果该参数是个函数对象，即将函数指针作为参数
@@ -491,7 +491,7 @@ bool MLTAPass::typePropInFunction(Function *F) {
         }
             // case2: 用聚合常量给结构体变量赋值
         else if (CallInst *CI = dyn_cast<CallInst>(I)) {
-            Function* CF = CI->getCalledFunction(); // called function
+            Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand()); // called function
             if (CF) { // 如果是直接调用
                 // LLVM may optimize struct assignment into a call to
                 // intrinsic memcpy

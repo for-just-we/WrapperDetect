@@ -123,14 +123,15 @@ bool KELPPass::doInitialization(Module* M) {
         // whether F is confined
         for (User* U : F.users()) {
             if (CallInst* CI = dyn_cast<CallInst>(U)) {
-                if (!CI->isIndirectCall() && CI->getCalledFunction()) {
+                Function* _Callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
+                if (!CI->isIndirectCall() && _Callee) {
                     // systemCall(...,f,...)
-                    if (CI->getCalledFunction()->isDeclaration() &&
-                        sysAPIs.count(CI->getCalledFunction()->getName().str()) &&
-                        &F == CI->getArgOperand(sysAPIs[CI->getCalledFunction()->getName().str()]))
+                    if (_Callee->isDeclaration() &&
+                        sysAPIs.count(_Callee->getName().str()) &&
+                        &F == CI->getArgOperand(sysAPIs[_Callee->getName().str()]))
                         continue;
                         // f(...)
-                    else if (CI->getCalledFunction() == &F)
+                    else if (_Callee == &F)
                         continue;
                 }
 
@@ -294,7 +295,7 @@ bool KELPPass::forwardAnalyze(Value* V) {
             }
             else {
                 // used in direct call: func(.., f, ..),
-                Function* callee = CI->getCalledFunction();
+                Function* callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 unsigned idx = -1;
                 for (idx = 0; idx < CI->getNumOperands() - 1; ++idx)
                     if (CI->getOperand(idx) == V)
