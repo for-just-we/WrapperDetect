@@ -6,16 +6,15 @@ The input to this project is single LLVM IR bitcode file. We use option `-g -Xcl
 
 | project | program | simple detection | heuristic detection | Intra-LLM |
 | ---- | ---- | ---- | ---- | ---- |
-
-| bash-5.2 | bash | 449 | 3 | 65 |
-| git-2.47.0 | git | 384 | 3 | 54 |
+| bash-5.2 | bash | 449 | 4 | 81 |
+| git-2.47.0 | git | 384 | 4 | 55 |
 | htop-3.3.0 | htop | 64 | 7 | 10 |
-| nanomq-0.22.10 | nanomq | 155 | 21 | 56 |
-| nanomq-0.22.10 | nanomq_cli | 95 | 14 | 44 |
+| nanomq-0.22.10 | nanomq | 155 | 22 | 56 |
+| nanomq-0.22.10 | nanomq_cli | 95 | 15 | 44 |
 | nanomq-0.22.10 | nngcat | 49 | 4 | 34 |
 | nasm-2.16.03 | nasm | 67 | 20 | 20 |
 | nasm-2.16.03 | ndisasm | 8 | 7 | - |
-| openssl-3.4.0 | openssl | 1866 | 1 | 137 |
+| openssl-3.4.0 | openssl | 1866 | 1 | 190 |
 | perl-5.4.0 | perl | 204 | 3 | 11 |
 | php-8.3.13 | php | 700 | 6 | Nan |
 | php-8.3.13 | php-cgi | 657 | 5 | Nan |

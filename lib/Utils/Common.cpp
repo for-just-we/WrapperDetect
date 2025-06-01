@@ -369,13 +369,13 @@ void log(const string& file, const vector<string>& curLogs) {
 
 Function* CommonUtil::getBaseFunction(Value *V) {
     if (Function *F = dyn_cast<Function>(V))
-        if (!F->isIntrinsic())
+        if (F != nullptr)
             return F;
     Value *CV = V;
     while (BitCastOperator *BCO = dyn_cast<BitCastOperator>(CV)) {
         Value* O = BCO->getOperand(0);
         if (Function *F = dyn_cast<Function>(O))
-            if (!F->isIntrinsic())
+            if (F != nullptr)
                 return F;
         CV = O;
     }
