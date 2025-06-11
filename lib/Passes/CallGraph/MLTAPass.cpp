@@ -147,7 +147,6 @@ void MLTAPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
             if (LayerNo >= max_type_layer)
                 break;
 
-            ++LayerNo;
             size_t TyIdxHash = CommonUtil::typeIdxHash(TyIdx.first, TyIdx.second);
             // -1 represents all possible fields of a struct
             size_t TyIdxHash_1 = CommonUtil::typeIdxHash(TyIdx.first, -1);
@@ -157,10 +156,11 @@ void MLTAPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
                 FS1 = MatchedFuncsMap[TyIdxHash];
             else {
                 // CurType ∈ escaped-type
-                if (typeEscapeSet.find(TyIdxHash) != typeEscapeSet.end())
+                if (typeEscapeSet.find(TyIdxHash) != typeEscapeSet.end()
+                    || typeEscapeSet.find(TyIdxHash_1) != typeEscapeSet.end()) {
+                    ContinueNextLayer = false;
                     break;
-                if (typeEscapeSet.find(TyIdxHash_1) != typeEscapeSet.end())
-                    break;
+                }
                 getTargetsWithLayerType(CommonUtil::typeHash(TyIdx.first), TyIdx.second, FS1);
                 // Collect targets from dependent types that may propagate
                 // targets to it
@@ -178,9 +178,11 @@ void MLTAPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
             // Next layer may not always have a subset of the previous layer
             // because of casting, so let's do intersection
             intersectFuncSets(FS1, *FS, FS2); // FS2 = FS & FS1
-            if (FS2.empty())
-                break;
             *FS = FS2; // FS = FS & FS1
+            if (FS2.empty()) {
+                ContinueNextLayer = false;
+                break;
+            }
             CV = NextV;
 
             // 如果出现了层次结构体赋值，比如test13中的b.a = a2; 此时B::a并不会confine到function，应该被标记为escaped，但是B::a不是函数指针field。
@@ -191,6 +193,7 @@ void MLTAPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
                 break;
             }
 
+            ++LayerNo;
             PrevLayerTy = TyIdx.first;
             PrevIdx = TyIdx.second;
         }

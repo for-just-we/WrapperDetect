@@ -6,31 +6,39 @@ The input to this project is single LLVM IR bitcode file. We use option `-g -Xcl
 
 | project | program | simple detection | heuristic detection | Intra-LLM |
 | ---- | ---- | ---- | ---- | ---- |
-| bash-5.2 | bash | 449 | 4 | 81 |
-| git-2.47.0 | git | 384 | 4 | 55 |
-| htop-3.3.0 | htop | 64 | 7 | 10 |
-| nanomq-0.22.10 | nanomq | 155 | 22 | 56 |
-| nanomq-0.22.10 | nanomq_cli | 95 | 15 | 44 |
+
+| bash-5.2 | bash | 462 | 3 | 65 |
+| bluez-5.83 | btmon | 34 | 21 | |
+| bluez-5.83 | bluetoothctl | 61 | 38 | |
+| cairo-1.18.4 | cairo | 91 | 5 | |
+| curl-8.14.1 | curl | 79 | 15 | |
+| git-2.47.0 | git | 391 | 4 | 54 |
+| htop-3.3.0 | htop | 65 | 7 | 10 |
+| nanomq-0.22.10 | nanomq | 155 | 21 | 56 |
+| nanomq-0.22.10 | nanomq_cli | 95 | 14 | 44 |
 | nanomq-0.22.10 | nngcat | 49 | 4 | 34 |
 | nasm-2.16.03 | nasm | 67 | 20 | 20 |
 | nasm-2.16.03 | ndisasm | 8 | 7 | - |
-| openssl-3.4.0 | openssl | 1866 | 1 | 190 |
-| perl-5.4.0 | perl | 204 | 3 | 11 |
-| php-8.3.13 | php | 700 | 6 | Nan |
+| nginx-1.26.2 | nginx | 156 | 0 | Nan |
+| openssl-3.4.0 | openssl | 2005 | 1 | 138 |
+| perl-5.4.0 | perl | 208 | 3 | 11 |
+| postgresql | postgresql | 33 | 9 | Nan |
+| php-8.3.13 | php | 728 | 6 | Nan |
 | php-8.3.13 | php-cgi | 657 | 5 | Nan |
 | php-8.3.13 | php-dbg | 658 | 5 | Nan |
-| ruby-3.3.6 | ruby | 1281 | 26 | 27 |
+| ruby-3.3.6 | ruby | 1282 | 26 | 27 |
 | teeworlds-0.7.5 | teeworlds | 6 | 4 | 4 |
 | teeworlds-0.7.5 | teeworlds_srv | 5 | 4 | 4 |
 | tmux-3.5 | tmux | 250 | 0 | 96 |
-| vim-9.1.0857 | vim | 308 | 1 | 63 |
-| wine-9.22 | widl | 93 | 16 | 20 |
+| vim-9.1.0857 | vim | 308 | 1 | 62 |
+| wine-9.22 | widl | 98 | 19 | 20 |
 | wine-9.22 | winebuild | 30 | 8 | 11 |
 | wine-9.22 | winedump | 26 | 11 | 14 |
 | wine-9.22 | winegcc | 20 | 6 | 11 |
-| wine-9.22 | wineserver | 119 | 14 | 14 |
+| wine-9.22 | wineserver | 125 | 14 | 14 |
 | wine-9.22 | wmc | 25 | 10 | 13 |
-| wine-9.22 | wrc | 105 | 34 | 42 |
+| wine-9.22 | wrc | 105 | 34 | 36 |
+| lighttpd1.4 | lighttpd | 77 | 22 | Nan |
 
 
 side effect:
