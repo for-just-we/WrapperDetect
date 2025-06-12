@@ -31,15 +31,17 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
         }
 
         content = resp["choices"][0]["message"]["content"];
-        string reasoning = resp["choices"][0]["message"]["reasoning_content"];
         int input_tokens = resp["usage"]["prompt_tokens"];
         int output_tokens = resp["usage"]["completion_tokens"];
 
         string totalLog;
         totalLog.append("************response*************\n");
         totalLog.append(content);
-        totalLog.append("\n************reasoning****************\n");
-        totalLog.append(reasoning);
+        if (resp["choices"][0]["message"].contains("reasoning_content")) {
+            string reasoning = resp["choices"][0]["message"]["reasoning_content"];
+            totalLog.append("\n************reasoning****************\n");
+            totalLog.append(reasoning);
+        }
         totalLog.append("\n");
 
         curLogs.emplace_back(totalLog);

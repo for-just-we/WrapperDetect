@@ -6,19 +6,13 @@ The input to this project is single LLVM IR bitcode file. We use option `-g -Xcl
 
 | project | program | simple detection | heuristic detection | Intra-LLM |
 | ---- | ---- | ---- | ---- | ---- |
-
 | bash-5.2 | bash | 462 | 3 | 65 |
-| bluez-5.83 | btmon | 34 | 21 | |
-| bluez-5.83 | bluetoothctl | 61 | 38 | |
-| cairo-1.18.4 | cairo | 91 | 5 | |
-| curl-8.14.1 | curl | 79 | 15 | |
+| curl-8.14.1 | curl | 79 | 15 | 15 |
 | git-2.47.0 | git | 391 | 4 | 54 |
 | htop-3.3.0 | htop | 65 | 7 | 10 |
 | nanomq-0.22.10 | nanomq | 155 | 21 | 56 |
 | nanomq-0.22.10 | nanomq_cli | 95 | 14 | 44 |
-| nanomq-0.22.10 | nngcat | 49 | 4 | 34 |
 | nasm-2.16.03 | nasm | 67 | 20 | 20 |
-| nasm-2.16.03 | ndisasm | 8 | 7 | - |
 | nginx-1.26.2 | nginx | 156 | 0 | Nan |
 | openssl-3.4.0 | openssl | 2005 | 1 | 138 |
 | perl-5.4.0 | perl | 208 | 3 | 11 |
