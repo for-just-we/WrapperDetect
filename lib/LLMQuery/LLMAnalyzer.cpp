@@ -3,8 +3,12 @@
 //
 #include "LLMQuery/LLMAnalyzer.h"
 #include "Utils/Tool/Common.h"
+#include <future>
+#include <mutex>
 #include <chrono>
-#include <iostream>
+
+mutex log_mutex;
+mutex stats_mutex;
 
 string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<string>& curLogs) {
     json payload = {
@@ -43,11 +47,13 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
             totalLog.append(reasoning);
         }
         totalLog.append("\n");
-
         curLogs.emplace_back(totalLog);
-        totalQueryNum += 1;
-        totalInputTokenNum += input_tokens;
-        totalOutputTokenNum += output_tokens;
+        {
+            lock_guard<mutex> lock(stats_mutex);
+            totalQueryNum += 1;
+            totalInputTokenNum += input_tokens;
+            totalOutputTokenNum += output_tokens;
+        }
         break;
     }
     auto end = chrono::high_resolution_clock::now();
@@ -61,33 +67,43 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
 
 bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string SummarizingTemplate, vector<string>& curLogs) {
     unsigned yesTime = 0;
-    unsigned noTime = 0;
     unsigned requiredTime = voteTime / 2;
     curLogs.emplace_back("*********query**************\n" + UserPrompt + "\n");
+
+    vector<future<bool>> futures;
     for (unsigned i = 0; i < voteTime; ++i) {
-        string content = queryLLM(SysPrompt, UserPrompt, curLogs);
-        if (CmpFirst(content, "yes")) {
-            yesTime++;
-            continue;
-        }
-        else if (CmpFirst(content, "no")) {
-            noTime++;
-            continue;
-        }
+        futures.emplace_back(async(launch::async, [&]() -> bool {
+            vector<string> localLogs;
+            string content = queryLLM(SysPrompt, UserPrompt, localLogs);
+            if (CmpFirst(content, "yes")) {
+                lock_guard<mutex> log_lock(log_mutex);
+                curLogs.insert(curLogs.end(), localLogs.begin(), localLogs.end());
+                return true;
+            }
+            else if (CmpFirst(content, "no")) {
+                lock_guard<mutex> log_lock(log_mutex);
+                curLogs.insert(curLogs.end(), localLogs.begin(), localLogs.end());
+                return false;
+            }
 
-        SummarizingTemplate = replaceAll(SummarizingTemplate, "{answer}", content);
-        // summarize the results
-        string empty;
-        curLogs.emplace_back("*********summarizing**************:\n" + content + "\n");
-        content = queryLLM(empty, content, curLogs);
-        if (CmpFirst(content, "yes"))
-            yesTime++;
-        else
-            noTime++;
+            SummarizingTemplate = replaceAll(SummarizingTemplate, "{answer}", content);
+            localLogs.emplace_back("*********summarizing**************:\n" + content + "\n");
 
-        if (yesTime > requiredTime || noTime > requiredTime)
-            break;
+            string empty;
+            string summarized = queryLLM(empty, content, localLogs);
+            {
+                lock_guard<mutex> log_lock(log_mutex);
+                curLogs.insert(curLogs.end(), localLogs.begin(), localLogs.end());
+            }
+
+            return CmpFirst(summarized, "yes");
+        }));
     }
+
+    for (auto& f : futures)
+        if (f.get())
+            yesTime++;
+
     bool isSimple = yesTime > requiredTime;
     curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
     return isSimple;
