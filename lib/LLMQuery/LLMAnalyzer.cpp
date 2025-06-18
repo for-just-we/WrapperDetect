@@ -26,7 +26,6 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
 
     json resp;
     string content = "<Error>";
-    auto start = chrono::high_resolution_clock::now();
     unsigned queries = 0;
     while (queries < retry) {
         if (!httpPost(query_url, payload, resp)) {
@@ -56,10 +55,6 @@ string LLMAnalyzer::queryLLM(string& SysPrompt, string& UserPrompt, vector<strin
         }
         break;
     }
-    auto end = chrono::high_resolution_clock::now();
-    // 计算耗时（毫秒）
-    long duration_s = chrono::duration_cast<chrono::seconds>(end - start).count();
-    totalLLMTime += duration_s;
 
     return strip(content);
 }
@@ -69,7 +64,7 @@ bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string Summari
     unsigned yesTime = 0;
     unsigned requiredTime = voteTime / 2;
     curLogs.emplace_back("*********query**************\n" + UserPrompt + "\n");
-
+    auto start = chrono::high_resolution_clock::now();
     vector<future<bool>> futures;
     for (unsigned i = 0; i < voteTime; ++i) {
         futures.emplace_back(async(launch::async, [&]() -> bool {
@@ -103,7 +98,10 @@ bool LLMAnalyzer::classify(string& SysPrompt, string& UserPrompt, string Summari
     for (auto& f : futures)
         if (f.get())
             yesTime++;
-
+    auto end = chrono::high_resolution_clock::now();
+    // 计算耗时（毫秒）
+    long duration_s = chrono::duration_cast<chrono::seconds>(end - start).count();
+    totalLLMTime += duration_s;
     bool isSimple = yesTime > requiredTime;
     curLogs.emplace_back(isSimple ? "final answer: yes" : "final answer: no");
     return isSimple;

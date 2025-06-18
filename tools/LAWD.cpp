@@ -297,6 +297,12 @@ int main(int argc, char** argv) {
         llmAnalyzer->totalInputTokenNum << ", output tokens: " << llmAnalyzer->totalOutputTokenNum <<
         ", query num: " << llmAnalyzer->totalQueryNum << "\n";
 
+    cout << "| " << duration.count() << " | " << llmAnalyzer->totalLLMTime << " | " << (duration.count() - llmAnalyzer->totalLLMTime) <<
+       " | " << llmAnalyzer->totalQueryNum << " | "
+       << std::fixed << std::setprecision(1) << static_cast<double>(llmAnalyzer->totalLLMTime) / llmAnalyzer->totalQueryNum <<
+       " | " << static_cast<double>(llmAnalyzer->totalInputTokenNum) / 1000.0 <<
+       " | " << static_cast<double>(llmAnalyzer->totalOutputTokenNum) / 1000.0 << "\n";
+
     // 打印分析结果
     PrintResults(&GlobalCtx);
     return 0;
