@@ -1,7 +1,7 @@
 
 function(add_executable_with_props name src)
     add_executable(${name} ${src})
-    target_link_libraries(${name} WDLib ${llvm_libs} ${ZSTD_LIBRARY} CURL::libcurl)
+    target_link_libraries(${name} WDLib)
     set_target_properties(${name}
             PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
             INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib;${LLVM_LIBRARY_DIRS};${CURL_LIB_DIR}"
