@@ -30,7 +30,7 @@ cl::opt<int> MaxTypeLayer(
         cl::NotHidden, cl::init(10));
 
 cl::opt<bool> DebugMode(
-        "debug",
+        "debug-mode",
         cl::desc("debug mode"),
         cl::init(false)
 );
