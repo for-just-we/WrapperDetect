@@ -7,7 +7,6 @@
 
 #include "Utils/Tool/Http.h"
 #include "Utils/Tool/Common.h"
-#include "llvm/ADT/StringExtras.h"
 #include <tuple>
 #include <utility>
 

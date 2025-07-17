@@ -28,6 +28,7 @@
 #include "Utils/Basic/Tarjan.h"
 #include "Utils/Basic/Config.h"
 #include "Utils/Basic/SourceCodeInfo.h"
+#include "Utils/Basic/Options.h"
 
 #include "LLMQuery/LLMAnalyzer.h"
 
@@ -35,55 +36,12 @@ using namespace llvm;
 using namespace std;
 using namespace chrono;
 
-// Command line parameters.
-cl::list<string> InputFilenames(
-        cl::Positional,
-        cl::OneOrMore,
-        cl::desc("<input bitcode files>"));
-
-// 默认采用FLTA
-cl::opt<int> ICallAnalysisType(
-        "icall-analysis-type",
-        cl::desc("select which call analysis to use: 1 --> FLTA, 2 --> MLTA, 3 --> Data Flow Enhanced MLTA, 4 --> Kelp"),
-        cl::NotHidden, cl::init(4));
-
-// wrapper analysis type
-cl::opt<int> WrapperAnalysisType(
-        "wrapper-analysis-type",
-        cl::desc("select which wrapper analysis to use: 1 --> LAWDPass"),
-        cl::NotHidden, cl::init(1)
-);
-
 // source code file
 cl::opt<string> SouceCodeInfoFile(
         "source-info-file",
         cl::desc("file storing source code information, in json format"),
         cl::NotHidden, cl::init("")
         );
-
-// max_type_layer
-cl::opt<int> MaxTypeLayer(
-        "max-type-layer",
-        cl::desc("Multi-layer type analysis for refining indirect-call targets"),
-        cl::NotHidden, cl::init(10));
-
-cl::opt<bool> DebugMode(
-        "debug",
-        cl::desc("debug mode"),
-        cl::init(false)
-);
-
-// indirect-call结果保存路径
-cl::opt<string> IcallOutputFilePath(
-        "icall-output-file",
-        cl::desc("Indirect-Call Analysis Output file path, better to use absolute path"),
-        cl::init(""));
-
-// wrapper结果保存路径
-cl::opt<string> WrapperOutputFilePath(
-        "wrapper-output-file",
-        cl::desc("Wrapper Analysis Output file path"),
-        cl::init(""));
 
 // prompt template加载路径
 cl::opt<string> PromptTemplateFile(
@@ -206,7 +164,7 @@ int main(int argc, char** argv) {
 
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
-    cl::ParseCommandLineOptions(argc, argv, "global analysis\n");
+    cl::ParseCommandLineOptions(argc, argv, "lawd analysis\n");
     SMDiagnostic Err;
 
     for (unsigned i = 0; i < InputFilenames.size(); ++i) {
