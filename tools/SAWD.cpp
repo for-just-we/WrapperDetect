@@ -112,7 +112,6 @@ int main(int argc, char** argv) {
     PrettyStackTraceProgram X(argc, argv);
 
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
-
     cl::ParseCommandLineOptions(argc, argv, "sawd analysis\n");
     SMDiagnostic Err;
 

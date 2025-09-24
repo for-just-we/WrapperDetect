@@ -18,7 +18,7 @@ public:
     set<string> allocFuncsNames = {"malloc", "calloc", "safe_calloc", "safe_malloc",
                                    "safecalloc", "safemalloc", "safexcalloc", "safexmalloc",
                                    "savealloc", "xalloc", "xmalloc", "xcalloc", "alloc", "alloc_check",
-                                   "alloc_clear", "permalloc",
+                                   "alloc_clear", "permalloc", "memalign", "aligned_alloc",
 
                                    "realloc", "reallocarray", "safe_realloc", "saferealloc", "safexrealloc", "mem_realloc", "xrealloc",
                                    "strdup", "strndup", "__strdup"};
