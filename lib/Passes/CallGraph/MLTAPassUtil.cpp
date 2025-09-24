@@ -35,15 +35,14 @@ bool MLTAPass::getTargetsWithLayerType(size_t TyHash, int Idx, FuncSet &FS) {
 bool MLTAPass::isCompositeType(Type *Ty) {
     if (Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy())
         return true;
-    else
-        return false;
+    return false;
 }
 
 // 返回该value的函数指针类型，如果该value不是函数指针，那么返回NULL
 Type* MLTAPass::getFuncPtrType(Value *V) {
     Type *Ty = V->getType();
     if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
-        Type *ETy = PTy->getPointerElementType();
+        Type *ETy = PTy->getNonOpaquePointerElementType();
         if (ETy->isFunctionTy())
             return ETy;
     }

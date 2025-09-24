@@ -1,10 +1,10 @@
 //
 // Created by prophe cheng on 2025/4/9.
 //
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/IR/InstIterator.h"
+#include <llvm/Analysis/LoopPass.h>
+#include <llvm/Analysis/LoopInfo.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include <llvm/IR/InstIterator.h>
 
 #include "Passes/CallGraph/CallGraphPass.h"
 #include "Utils/Basic/TypeDecls.h"
@@ -20,7 +20,7 @@ bool CallGraphPass::doInitialization(Module* M) {
         unrollLoops(F);
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // Map callsite to possible callees.
-            if (CallInst *CI = dyn_cast<CallInst>(&*i)) {
+            if (CallBase *CI = dyn_cast<CallBase>(&*i)) {
                 CallSet.insert(CI);
                 if (CI->isIndirectCall())
                     continue;
@@ -64,16 +64,22 @@ bool CallGraphPass::doModulePass(Module *M) {
         if (F->isDeclaration())
             continue;
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
-            if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+            if (CallBase* CI = dyn_cast<CallBase>(&*i)) {
                 if (!CI->isIndirectCall())
                     continue;
                 // skip virtual call for now
+                FuncSet* FS = &Ctx->Callees[CI];
                 if (isVirtualCall(CI)) {
                     VCallSet.insert(CI);
-                    continue;
+                    analyzeVirtualCall(CI, FS);
+                    Ctx->VirtualCallInsts.push_back(CI);
                 }
-                FuncSet* FS = &Ctx->Callees[CI];
-                analyzeIndCall(CI, FS);
+                else {
+                    ICallSet.insert(CI);
+                    analyzeIndCall(CI, FS);
+                    // Save called values for future uses.
+                    Ctx->IndirectCallInsts.push_back(CI);
+                }
 
                 for (Function* Callee : *FS) {
                     // OP << "**** solving callee: " << Callee->getName().str() << "\n";
@@ -81,10 +87,6 @@ bool CallGraphPass::doModulePass(Module *M) {
                     Ctx->CallMaps[CI->getFunction()].insert(Callee);
                     Ctx->CalledMaps[Callee].insert(CI->getFunction());
                 }
-                // Save called values for future uses.
-                Ctx->IndirectCallInsts.push_back(CI);
-
-                ICallSet.insert(CI);
                 if (!FS->empty()) {
                     MatchedICallSet.insert(CI);
                     Ctx->NumIndirectCallTargets += FS->size();
@@ -189,7 +191,7 @@ void CallGraphPass::unrollLoops(Function* F) {
     }
 }
 
-bool CallGraphPass::isVirtualCall(CallInst* CI) {
+bool CallGraphPass::isVirtualCall(CallBase* CI) {
     // the callsite must be an indirect one with at least one argument (this
     // ptr)
     if (CommonUtil::getBaseFunction(CI->getCalledOperand()) != nullptr || CI->arg_empty())

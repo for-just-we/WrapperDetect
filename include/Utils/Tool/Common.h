@@ -5,9 +5,9 @@
 #ifndef WRAPPERDETECT_COMMON_H
 #define WRAPPERDETECT_COMMON_H
 
-#include "llvm/IR/Module.h"
-#include "GlobalContext.h"
+#include <llvm/IR/Module.h>
 #include <string>
+#include "Utils/Tool/GlobalContext.h"
 
 using namespace std;
 using namespace llvm;
@@ -20,7 +20,7 @@ string removeFuncNumberSuffix(const string& funcName);
 
 string getNormalizedPath(const DISubprogram *DIS);
 
-void dumpAllocationWrapperInfo(map<Function*, set<CallInst*>>& function2AllocCalls, GlobalContext* Ctx, string file);
+void dumpAllocationWrapperInfo(map<Function*, set<CallBase*>>& function2AllocCalls, GlobalContext* Ctx, string file);
 
 string strip(const string& s);
 

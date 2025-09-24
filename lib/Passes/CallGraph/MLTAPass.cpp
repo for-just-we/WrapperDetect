@@ -1,9 +1,9 @@
 //
 // Created by prophe cheng on 2025/4/10.
 //
-#include "llvm/IR/Operator.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/DebugInfo.h"
+#include <llvm/IR/Operator.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/DebugInfo.h>
 #include <string>
 
 #include "Utils/Basic/Config.h"
@@ -101,7 +101,7 @@ bool MLTAPass::doInitialization(Module* M) {
     return false;
 }
 
-void MLTAPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
+void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
     // Initial set: first-layer results
     // TODO: handling virtual functions
     // 获得FLTA结果
@@ -234,13 +234,13 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
         // 如果该聚合常量访问过，跳过
         if (Visited.find(U) != Visited.end())
             continue;
-
+        
         Visited.insert(U);
         // 获取聚合常量的类型
         Type* UTy = U->getType();
         assert(!UTy->isFunctionTy());
         // 如果是结构体类型的聚合常量并且子常量数量大于0，那么判定常量数量等于结构体field数量
-        if (StructType *STy = dyn_cast<StructType>(U->getType())) {
+        if (StructType *STy = dyn_cast<StructType>(UTy)) {
             if (U->getNumOperands() > 0)
                 assert(STy->getNumElements() == U->getNumOperands());
             else
@@ -320,7 +320,7 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
                 if (GlobalVariable* GO = dyn_cast<GlobalVariable>(OU)) {
                     DBG << "subconstant: " << subConstantText << " point to global variable: "
                         << GO->getName().str() << "\n";
-                    Type* Ty = POTy->getPointerElementType(); // 获取指针变量的类型
+                    Type* Ty = POTy->getNonOpaquePointerElementType(); // 获取指针变量的类型
                     // FIXME: take it as a confinement instead of a cap
                     if (Ty->isStructTy()) {
                         typeCapSet.insert(CommonUtil::typeHash(Ty));
@@ -350,10 +350,6 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
                     Type* CTy = Container.first->getType(); // 父聚合常量的类型
                     set<size_t> TyHS; // 所有满足当前层次对应的结构体type的hash
                     TyHS.insert(CommonUtil::typeHash(CTy));
-                    string type_name = getInstructionText(CTy);
-                    if (StructType* STy = dyn_cast<StructType>(CTy))
-                        type_name = CommonUtil::getValidStructName(STy);
-
                     for (auto TyH: TyHS)  // 遍历所有可以和当前层次类型对应上的类型hash
                         typeIdxFuncsMap[TyH][Container.second].insert(FoundF);
 
@@ -383,7 +379,7 @@ void MLTAPass::collectAliasStructPtr(Function *F) {
         if (CastInst *CI = dyn_cast<CastInst>(I)) {
             Value* FromV = CI->getOperand(0);
             // TODO: we only consider calls for now
-            if (!isa<CallInst>(FromV)) // FromTy是函数调用返回值
+            if (!isa<CallBase>(FromV)) // FromTy是函数调用返回值
                 continue;
 
             Type* FromTy = FromV->getType(); // 原始类型
@@ -418,7 +414,7 @@ bool MLTAPass::typeConfineInFunction(Function *F) {
         if (StoreInst *SI = dyn_cast<StoreInst>(I))
             typeConfineInStore(SI);
             // 访问所有参数包含了函数指针的函数调用
-        else if (CallInst *CI = dyn_cast<CallInst>(I)) {
+        else if (CallBase *CI = dyn_cast<CallBase>(I)) {
             // 访问实参
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand()); // CF为被调用的函数
             for (User::op_iterator OI = CI->op_begin(), OE = CI->op_end(); OI != OE; ++OI) {
@@ -493,7 +489,7 @@ bool MLTAPass::typePropInFunction(Function *F) {
             DBG << "store inst: " << getInstructionText(SI) << "\n";
         }
             // case2: 用聚合常量给结构体变量赋值
-        else if (CallInst *CI = dyn_cast<CallInst>(I)) {
+        else if (CallBase *CI = dyn_cast<CallBase>(I)) {
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand()); // called function
             if (CF) { // 如果是直接调用
                 // LLVM may optimize struct assignment into a call to

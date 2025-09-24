@@ -5,8 +5,8 @@
 #ifndef WRAPPERDETECT_MLTAPASS_H
 #define WRAPPERDETECT_MLTAPASS_H
 
-#include "llvm/IR/Operator.h"
-#include "llvm/IR/Instructions.h"
+#include <llvm/IR/Operator.h>
+#include <llvm/IR/Instructions.h>
 
 #include <list>
 
@@ -42,7 +42,7 @@ public:
         CommonUtil::LoadElementsStructNameMap(Ctx->Modules);
     }
 
-    void analyzeIndCall(CallInst* callInst, FuncSet* FS) override;
+    void analyzeIndCall(CallBase* callInst, FuncSet* FS) override;
 
     bool doInitialization(Module*) override;
 

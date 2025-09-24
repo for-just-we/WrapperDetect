@@ -33,7 +33,7 @@ public:
     virtual void identifySideEffectFunctions();
 
     // analyze whether return value could flow from argument or global variable
-    bool analyzeReturn(ReturnInst* RI, set<CallInst*>& visitAllocCalls);
+    bool analyzeReturn(ReturnInst* RI, set<CallBase*>& visitAllocCalls);
 
     static bool analyzeStore(StoreInst* SI);
 
@@ -43,14 +43,14 @@ public:
         return Ty->isPointerTy() || Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy();
     }
 
-    void promoteToCaller(Function* F, set<CallInst*>& visitedAllocCalls,
+    void promoteToCaller(Function* F, set<CallBase*>& visitedAllocCalls,
                          queue<Function*>& worklist, set<Function*>& inWorklist);
 
-    void checkWhetherAlloc(Function* F, bool& isAlloc, bool& everyAllocReturned, set<CallInst*>& visitedAllocCalls);
+    void checkWhetherAlloc(Function* F, bool& isAlloc, bool& everyAllocReturned, set<CallBase*>& visitedAllocCalls);
 
-    void processPotentialAllocs(Function* F, set<CallInst*>& potentialAllocs);
+    void processPotentialAllocs(Function* F, set<CallBase*>& potentialAllocs);
 
-    virtual bool checkSimpleAlloc(Function* F, bool &simpleRet, set<CallInst*>& potentialAllocs);
+    virtual bool checkSimpleAlloc(Function* F, bool &simpleRet, set<CallBase*>& potentialAllocs);
 };
 
 #endif //WRAPPERDETECT_HAWDPASS_H

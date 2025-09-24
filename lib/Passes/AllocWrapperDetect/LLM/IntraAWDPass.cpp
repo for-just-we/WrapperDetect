@@ -1,15 +1,15 @@
 //
 // Created by prophe cheng on 2025/5/16.
 //
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/DebugInfoMetadata.h"
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <queue>
+#include <filesystem>
 
 #include "Passes/AllocWrapperDetect/LLM/IntraAWDPass.h"
 #include "Utils/Basic/Tarjan.h"
 #include "Utils/Tool/Common.h"
-#include <queue>
-#include <filesystem>
 
 bool IntraAWDPass::doModulePass(Module* M) {
     // analyze strong connected component
@@ -35,12 +35,12 @@ bool IntraAWDPass::doModulePass(Module* M) {
 
             bool isAlloc = false;
             bool everyAllocReturned = true;
-            set<CallInst*> visitedAllocCalls;
+            set<CallBase*> visitedAllocCalls;
             checkWhetherAlloc(F, isAlloc, everyAllocReturned, visitedAllocCalls);
             if (!isAlloc || !everyAllocReturned)
                 continue;
 
-            set<CallInst*> potentialAllocs;
+            set<CallBase*> potentialAllocs;
             potentialAllocs.insert(visitedAllocCalls.begin(), visitedAllocCalls.end());
             processPotentialAllocs(F, potentialAllocs);
 
@@ -82,7 +82,7 @@ bool IntraAWDPass::doModulePass(Module* M) {
                         llmEnable = false;
                         break;
                     }
-                    CallInst* CI = dyn_cast<CallInst>(sideEffect.first);
+                    CallBase* CI = dyn_cast<CallBase>(sideEffect.first);
                     // unknown side-effect indirect-call
                     if (CI->isIndirectCall() && !potentialAllocs.count(CI))
                         llmEnable = false;
@@ -123,7 +123,7 @@ bool IntraAWDPass::doModulePass(Module* M) {
                         if (!sideEffectCalledStr.empty())
                             sideEffectCalledStr = sideEffectCalledStr.substr(0, sideEffectCalledStr.size() - 1);
 
-                        for (CallInst* allocCI: visitedAllocCalls) {
+                        for (CallBase* allocCI: visitedAllocCalls) {
                             if (allocCI->isIndirectCall()) {
                                 for (Function* allocCallee: Ctx->Callees[allocCI])
                                     indirectAllocCalled.insert(removeFuncNumberSuffix(allocCallee->getName().str()));

@@ -9,10 +9,10 @@
 
 class CallGraphPass: public IterativeModulePass {
 public:
-    set<CallInst*> CallSet;
-    set<CallInst*> ICallSet;
-    set<CallInst*> VCallSet;
-    set<CallInst*> MatchedICallSet;
+    set<CallBase*> CallSet;
+    set<CallBase*> ICallSet;
+    set<CallBase*> VCallSet;
+    set<CallBase*> MatchedICallSet;
 
     CallGraphPass(GlobalContext* Ctx_): IterativeModulePass(Ctx_) {
         ID = "base call graph pass";
@@ -27,11 +27,13 @@ public:
     // Iterative pass.
     virtual bool doModulePass(Module* M) override;
 
-    virtual void analyzeIndCall(CallInst* callInst, FuncSet* FS) = 0;
+    virtual void analyzeIndCall(CallBase* callInst, FuncSet* FS) {}
+
+    virtual void analyzeVirtualCall(CallBase* callInst, FuncSet* FS) {}
 
     void unrollLoops(Function* F);
 
-    bool isVirtualCall(CallInst* CI);
+    bool isVirtualCall(CallBase* CI);
 
     bool isVirtualFunction(Function* F);
 };

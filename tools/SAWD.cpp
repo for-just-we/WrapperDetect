@@ -3,13 +3,13 @@
 //
 // Simple Alloc Wrapper Detector
 
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Signals.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IRReader/IRReader.h"
+#include <llvm/Support/CommandLine.h>
+#include <llvm/Support/PrettyStackTrace.h>
+#include <llvm/Support/Signals.h>
+#include <llvm/Support/SourceMgr.h>
+#include <llvm/ADT/StringExtras.h>
+#include <llvm/IR/DebugInfo.h>
+#include <llvm/IRReader/IRReader.h>
 
 #include <iostream>
 #include <fstream>

@@ -18,9 +18,9 @@ public:
 
     bool fuzzyTypeMatch(Type *Ty1, Type *Ty2, Module *M1, Module *M2);
 
-    void findCalleesWithType(CallInst*, FuncSet&);
+    void findCalleesWithType(CallBase*, FuncSet&);
 
-    void analyzeIndCall(CallInst* CI, FuncSet* FS) override;
+    void analyzeIndCall(CallBase* CI, FuncSet* FS) override;
 
     bool doInitialization(Module *M) override;
 };

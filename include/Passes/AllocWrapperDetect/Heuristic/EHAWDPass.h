@@ -23,7 +23,7 @@ public:
 
     bool doModulePass(Module* M) override;
 
-    bool checkSimpleAlloc(Function* F, bool &simpleRet, set<CallInst*>& potentialAllocs) override;
+    bool checkSimpleAlloc(Function* F, bool &simpleRet, set<CallBase*>& potentialAllocs) override;
 };
 
 #endif //WRAPPERDETECT_EHAWDPASS_H

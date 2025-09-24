@@ -2,14 +2,13 @@
 // Created by prophe cheng on 2025/5/23.
 //
 
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Instructions.h"
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <queue>
 
 #include "Passes/AllocWrapperDetect/Heuristic/EHAWDPass.h"
 #include "Utils/Basic/Tarjan.h"
-#include <queue>
-
-#include "llvm/IR/DebugInfoMetadata.h"
 
 void EHAWDPass::identifySideEffectFunctions() {
     OP << "LLM-enhanced Pass: analyze side-effect function start\n";
@@ -28,7 +27,7 @@ void EHAWDPass::identifySideEffectFunctions() {
                         func2SideEffectOps[F].insert(make_pair(SI, SideEffectType::Store));
                 }
 
-                else if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+                else if (CallBase* CI = dyn_cast<CallBase>(&*i)) {
                     Function* Callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
                     // recursive call, skip
                     if (Callee == F)
@@ -73,7 +72,7 @@ void EHAWDPass::identifySideEffectFunctions() {
                     visited.insert(curF);
 
                     // all caller instruction
-                    for (CallInst* CI: Ctx->Callers[curF]) {
+                    for (CallBase* CI: Ctx->Callers[curF]) {
                         Function* CallerF = CI->getFunction();
                         // if CallerF not in current SCC
                         if (!sccSet.count(CallerF))
@@ -118,12 +117,12 @@ bool EHAWDPass::doModulePass(Module* M) {
 
             bool isAlloc = false;
             bool everyAllocReturned = true;
-            set<CallInst*> visitedAllocCalls;
+            set<CallBase*> visitedAllocCalls;
             checkWhetherAlloc(F, isAlloc, everyAllocReturned, visitedAllocCalls);
             if (!isAlloc || !everyAllocReturned)
                 continue;
 
-            set<CallInst*> potentialAllocs;
+            set<CallBase*> potentialAllocs;
             potentialAllocs.insert(visitedAllocCalls.begin(), visitedAllocCalls.end());
             processPotentialAllocs(F, potentialAllocs);
 
@@ -144,7 +143,7 @@ bool EHAWDPass::doModulePass(Module* M) {
                         sideEffectIgnorable = false;
                         break;
                     }
-                    CallInst* CI = dyn_cast<CallInst>(sideEffect.first);
+                    CallBase* CI = dyn_cast<CallBase>(sideEffect.first);
                     if (!potentialAllocs.count(CI)) {
                         bool allArgSimpleType = !isComplexType(CI->getType());
                         for (unsigned i = 0; i < CI->getNumOperands() - 1; ++i) {
@@ -172,7 +171,7 @@ bool EHAWDPass::doModulePass(Module* M) {
     return false;
 }
 
-bool EHAWDPass::checkSimpleAlloc(Function* F, bool &simpleRet, set<CallInst*>& potentialAllocs) {
+bool EHAWDPass::checkSimpleAlloc(Function* F, bool &simpleRet, set<CallBase*>& potentialAllocs) {
     bool operateGlob = false;
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction* I = &*i;

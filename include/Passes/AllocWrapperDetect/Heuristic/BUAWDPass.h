@@ -11,7 +11,7 @@
 // different is that this pass use a bottom-up style algorithm.
 class BUAWDPass: public AWDPass {
 public:
-    map<Function*, set<CallInst*>> function2AllocCalls;
+    map<Function*, set<CallBase*>> function2AllocCalls;
 
     BUAWDPass(GlobalContext* GCtx_): AWDPass(GCtx_) {
             ID = "bottom-up style alloc wrapper detection pass";

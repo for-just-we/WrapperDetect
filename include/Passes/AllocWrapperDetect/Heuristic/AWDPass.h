@@ -10,10 +10,10 @@
 // find all alloc wrapper, ignore side-effect. Follow the design of SVF
 class AWDPass: public IterativeModulePass {
 private:
-    set<CallInst*> baseAllocCalls;
+    set<CallBase*> baseAllocCalls;
 public:
     set<Function*> AllocWrappers;
-    map<Function*, set<CallInst*>> callInWrappers;
+    map<Function*, set<CallBase*>> callInWrappers;
 
     set<string> allocFuncsNames = {"malloc", "calloc", "safe_calloc", "safe_malloc",
                                    "safecalloc", "safemalloc", "safexcalloc", "safexmalloc",

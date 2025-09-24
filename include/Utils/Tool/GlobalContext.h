@@ -27,7 +27,7 @@ public:
     static size_t funcHash(Function* F, bool withName = false);
 
     // 根据callsite对应的FunctionType计算hash
-    static size_t callHash(CallInst* CI);
+    static size_t callHash(CallBase* CI);
 
     static size_t typeHash(Type* Ty);
 
@@ -89,7 +89,8 @@ struct GlobalContext {
     DenseMap<size_t, FuncSet> sigFuncsMap;
 
     // Indirect call instructions.
-    vector<CallInst*> IndirectCallInsts;
+    vector<CallBase*> IndirectCallInsts;
+    vector<CallBase*> VirtualCallInsts;
 
     // Modules.
     ModuleList Modules;
@@ -97,7 +98,7 @@ struct GlobalContext {
     set<string> InvolvedModules;
 
     set<Function*> AllocWrappers;
-    map<Function*, set<CallInst*>> callInWrappers;
+    map<Function*, set<CallBase*>> callInWrappers;
     set<string> AllocWrapperKeys;
 };
 

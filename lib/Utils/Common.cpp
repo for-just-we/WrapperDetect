@@ -2,14 +2,14 @@
 // Created by prophe cheng on 2025/4/10.
 //
 
-#include "llvm/IR/InlineAsm.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Operator.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/Support/Path.h"
-#include "llvm/ADT/SmallString.h"
+#include <llvm/IR/InlineAsm.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Operator.h>
+#include <llvm/ADT/StringExtras.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/Support/Path.h>
+#include <llvm/ADT/SmallString.h>
 
 #include <regex>
 #include <utility>
@@ -134,7 +134,7 @@ size_t CommonUtil::funcHash(Function* F, bool withName) {
 
 
 // 获取callsite对应的signature
-size_t CommonUtil::callHash(CallInst *CI) {
+size_t CommonUtil::callHash(CallBase *CI) {
     auto CB = dyn_cast<CallBase>(CI);
 
     hash<string> str_hash;
@@ -175,6 +175,7 @@ size_t CommonUtil::typeHash(Type *Ty) {
             ty_str = getValidStructName(STy);
             ty_str += ("," + itostr(STy->getNumElements()));
         }
+        // 源代码中有name的结构体编译为IR后可能变成匿名结构体
         else {
             string sstr = structTyStr(STy);
             if (elementsStructNameMap.find(sstr) != elementsStructNameMap.end())
@@ -266,7 +267,7 @@ string getNormalizedPath(const DISubprogram *DIS) {
     return fullPath.str().str();
 }
 
-void dumpAllocationWrapperInfo(map<Function*, set<CallInst*>>& function2AllocCalls, GlobalContext* Ctx,
+void dumpAllocationWrapperInfo(map<Function*, set<CallBase*>>& function2AllocCalls, GlobalContext* Ctx,
                                string file) {
     std::ostream* out;
     std::ofstream ofs;
@@ -290,7 +291,7 @@ void dumpAllocationWrapperInfo(map<Function*, set<CallInst*>>& function2AllocCal
         funcKey.append(fileName);
         funcKey.append("\" }+");
         funcKey.append(funcName);
-        for (CallInst* CI: iter.second) {
+        for (CallBase* CI: iter.second) {
             // { "ln": 72, "cl": 9, "fl": "nasmlib/alloc.c" }+calloc
             string callLoc = "{ \"ln\": " + itostr(CI->getDebugLoc()->getLine()) +
                              ", \"cl\": " + itostr(CI->getDebugLoc()->getColumn()) +

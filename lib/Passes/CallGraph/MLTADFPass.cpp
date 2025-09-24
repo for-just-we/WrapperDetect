@@ -2,7 +2,7 @@
 // Created by prophe cheng on 2025/4/10.
 //
 
-#include "llvm/IR/InstIterator.h"
+#include <llvm/IR/InstIterator.h>
 #include "Passes/CallGraph/MLTADFPass.h"
 
 void MLTADFPass::typeConfineInStore(StoreInst* SI) {
@@ -83,7 +83,7 @@ bool MLTADFPass::resolveSFP(Value* User, Value* V, set<Function*>& callees,
             return false;
 
         // Note: recursive call
-        for (CallInst* Caller: Ctx->Callers[F]) {
+        for (CallBase* Caller: Ctx->Callers[F]) {
             Function* PF = Caller->getFunction();
             if (visitedFuncs.count(PF))
                 continue;
@@ -94,7 +94,7 @@ bool MLTADFPass::resolveSFP(Value* User, Value* V, set<Function*>& callees,
     }
 
     // function pointer: f = getF(...), where getF return function pointer.
-    else if (CallInst* CI = dyn_cast<CallInst>(V)) {
+    else if (CallBase* CI = dyn_cast<CallBase>(V)) {
         // if function pointer is retrived by indirect call, we conservatively deem it as non-simple function pointer
         if (CI->isIndirectCall())
             return false;
@@ -129,7 +129,7 @@ bool MLTADFPass::justifyUsers(Value* value, Value* curUser) {
         if (user == curUser)
             continue;
         // if function pointer: f is used in CallInst, it is either call: f(xxx) or pass arguments f1(f,...). This is OK
-        else if (isa<CallInst>(user))
+        else if (isa<CallBase>(user))
             continue;
         // if function pointer: f is used in cmp, like if (f) { ... }
         else if (isa<CmpInst>(user))

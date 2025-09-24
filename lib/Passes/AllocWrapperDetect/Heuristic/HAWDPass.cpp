@@ -1,10 +1,10 @@
 //
 // Created by prophe cheng on 2025/4/15.
 //
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/Operator.h"
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Operator.h>
 
 #include <queue>
 
@@ -28,7 +28,7 @@ bool HAWDPass::doInitialization(Module* M) {
             continue;
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // if call to malloc
-            if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+            if (CallBase* CI = dyn_cast<CallBase>(&*i)) {
                 Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 if (CF && allocFuncsNames.count(CF->getName().str())) {
                     function2AllocCalls[F].insert(CI);
@@ -78,12 +78,12 @@ bool HAWDPass::doModulePass(Module* M) {
 
             bool isAlloc = false;
             bool everyAllocReturned = true;
-            set<CallInst*> visitedAllocCalls;
+            set<CallBase*> visitedAllocCalls;
             checkWhetherAlloc(F, isAlloc, everyAllocReturned, visitedAllocCalls);
             if (!isAlloc || !everyAllocReturned)
                 continue;
 
-            set<CallInst*> potentialAllocs;
+            set<CallBase*> potentialAllocs;
             potentialAllocs.insert(visitedAllocCalls.begin(), visitedAllocCalls.end());
             processPotentialAllocs(F, potentialAllocs);
 
@@ -101,7 +101,7 @@ bool HAWDPass::doModulePass(Module* M) {
 }
 
 // make sure all the return value come from current function
-bool HAWDPass::analyzeReturn(ReturnInst* RI, set<CallInst*>& visitAllocCalls) {
+bool HAWDPass::analyzeReturn(ReturnInst* RI, set<CallBase*>& visitAllocCalls) {
     if (!RI->getReturnValue())
         return true;
     set<Value*> visitedV;
@@ -120,8 +120,8 @@ bool HAWDPass::analyzeReturn(ReturnInst* RI, set<CallInst*>& visitAllocCalls) {
         if (isa<ConstantPointerNull>(curV))
             continue;
 
-        else if (isa<CallInst>(curV)) {
-            CallInst* CI = dyn_cast<CallInst>(curV);
+        else if (isa<CallBase>(curV)) {
+            CallBase* CI = dyn_cast<CallBase>(curV);
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
             if (visitAllocCalls.count(CI))
                 continue;
@@ -185,7 +185,7 @@ void HAWDPass::identifySideEffectFunctions() {
                     }
                 }
 
-                else if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+                else if (CallBase* CI = dyn_cast<CallBase>(&*i)) {
                     Function* Callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
                     // recursive call, skip
                     if (Callee == F)
@@ -283,13 +283,13 @@ bool HAWDPass::analyzeStore(StoreInst* SI) {
 }
 
 
-void HAWDPass::promoteToCaller(Function* F, set<CallInst*>& visitedAllocCalls,
+void HAWDPass::promoteToCaller(Function* F, set<CallBase*>& visitedAllocCalls,
                                 queue<Function*>& worklist, set<Function*>& inWorklist) {
-    for (CallInst* CI: visitedAllocCalls)
+    for (CallBase* CI: visitedAllocCalls)
         callInWrappers[F].insert(CI);
     if (!AllocWrappers.count(F)) {
         AllocWrappers.insert(F);
-        for (CallInst* callerCI: Ctx->Callers[F]) {
+        for (CallBase* callerCI: Ctx->Callers[F]) {
             bool isSimpleWrapper = true;
             for (Function* _Callee: Ctx->Callees[callerCI]) {
                 if (!AllocWrappers.count(_Callee)) {
@@ -312,10 +312,10 @@ void HAWDPass::promoteToCaller(Function* F, set<CallInst*>& visitedAllocCalls,
 
 
 void HAWDPass::checkWhetherAlloc(Function* F, bool& isAlloc, bool& everyAllocReturned,
-                                 set<CallInst*>& visitedAllocCalls) {
+                                 set<CallBase*>& visitedAllocCalls) {
     if (function2AllocCalls.count(F)) {
         // iterate every simple alloc call in F
-        for (CallInst* curCI: function2AllocCalls[F]) {
+        for (CallBase* curCI: function2AllocCalls[F]) {
             set<Value*> visitedValues;
             // if this simple alloc call could flow to return
             if (traceValueFlow(curCI, visitedValues)) {
@@ -330,10 +330,10 @@ void HAWDPass::checkWhetherAlloc(Function* F, bool& isAlloc, bool& everyAllocRet
 }
 
 
-void HAWDPass::processPotentialAllocs(Function* F, set<CallInst*>& potentialAllocs) {
+void HAWDPass::processPotentialAllocs(Function* F, set<CallBase*>& potentialAllocs) {
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction* I = &*i;
-        if (CallInst* CI = dyn_cast<CallInst>(I)) {
+        if (CallBase* CI = dyn_cast<CallBase>(I)) {
             if (CI->getCalledFunction() && CI->getCalledFunction()->isIntrinsic())
                 continue;
             bool selfCall = true;
@@ -350,7 +350,7 @@ void HAWDPass::processPotentialAllocs(Function* F, set<CallInst*>& potentialAllo
 }
 
 
-bool HAWDPass::checkSimpleAlloc(Function* F, bool &simpleRet, set<CallInst*>& potentialAllocs) {
+bool HAWDPass::checkSimpleAlloc(Function* F, bool &simpleRet, set<CallBase*>& potentialAllocs) {
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction* I = &*i;
         if (ReturnInst* RI = dyn_cast<ReturnInst>(I)) {

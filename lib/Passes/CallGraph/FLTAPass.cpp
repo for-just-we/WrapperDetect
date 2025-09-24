@@ -1,7 +1,7 @@
 //
 // Created by prophe cheng on 2025/4/10.
 //
-#include "llvm/IR/Instructions.h"
+#include <llvm/IR/Instructions.h>
 #include "Passes/CallGraph/FLTAPass.h"
 
 bool FLTAPass::doInitialization(Module* M) {
@@ -76,7 +76,7 @@ bool FLTAPass::fuzzyTypeMatch(Type* Ty1, Type* Ty2, Module *M1, Module *M2) {
 // long as the number and type of parameters of a function matches
 // with the ones of the callsite, we say the function is a possible
 // target of this call.
-void FLTAPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
+void FLTAPass::findCalleesWithType(CallBase *CI, FuncSet &S) {
     if (CI->isInlineAsm())
         return;
     // Performance improvement: cache results for types
@@ -141,7 +141,7 @@ void FLTAPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
 }
 
 
-void FLTAPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
+void FLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
     size_t CIH = CommonUtil::callHash(CI);
     if (MatchedICallTypeMap.find(CIH) != MatchedICallTypeMap.end())
         *FS = MatchedICallTypeMap[CIH];

@@ -2,14 +2,14 @@
 // Created by prophe cheng on 2025/5/31.
 //
 
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/DebugInfoMetadata.h"
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <queue>
 
 #include "Passes/AllocWrapperDetect/Debug/DebugPass.h"
 #include "Utils/Basic/Tarjan.h"
 #include "Utils/Tool/Common.h"
-#include <queue>
 
 
 bool DebugPass::doInitialization(Module* M) {
@@ -27,7 +27,7 @@ bool DebugPass::doInitialization(Module* M) {
             continue;
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // if call to malloc
-            if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+            if (CallBase* CI = dyn_cast<CallBase>(&*i)) {
                 Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 if (CF && (allocFuncsNames.count(CF->getName().str()) || preAnalyzedWrappers.count(CF))) {
                     function2AllocCalls[F].insert(CI);
@@ -79,19 +79,19 @@ bool DebugPass::doModulePass(Module *M) {
             if (interestingFuncs.count(removeFuncNumberSuffix(F->getName().str()))) {
                 for (auto iter: func2SideEffectOps[F]) {
                     OP << iter.second << " ," << getInstructionText(iter.first) << "\n";
-                    if (CallInst* _CI = dyn_cast<CallInst>(iter.first))
+                    if (CallBase* _CI = dyn_cast<CallBase>(iter.first))
                         OP << "indirect-call: " << _CI->isIndirectCall() << "\n";
                 }
             }
 
             bool isAlloc = false;
             bool everyAllocReturned = true;
-            set<CallInst*> visitedAllocCalls;
+            set<CallBase*> visitedAllocCalls;
             checkWhetherAlloc(F, isAlloc, everyAllocReturned, visitedAllocCalls);
             if (!isAlloc || !everyAllocReturned)
                 continue;
 
-            set<CallInst*> potentialAllocs;
+            set<CallBase*> potentialAllocs;
             potentialAllocs.insert(visitedAllocCalls.begin(), visitedAllocCalls.end());
             processPotentialAllocs(F, potentialAllocs);
 
@@ -114,7 +114,7 @@ bool DebugPass::doModulePass(Module *M) {
                 set<string> indirectAllocCalled;
 
                 if (interestingFuncs.count(removeFuncNumberSuffix(F->getName().str()))) {
-                    for (CallInst* _CI: potentialAllocs)
+                    for (CallBase* _CI: potentialAllocs)
                         OP << "potential call: " << getInstructionText(_CI) << "\n";
                 }
 
@@ -125,7 +125,7 @@ bool DebugPass::doModulePass(Module *M) {
                         llmEnable = false;
                         break;
                     }
-                    CallInst* CI = dyn_cast<CallInst>(sideEffect.first);
+                    CallBase* CI = dyn_cast<CallBase>(sideEffect.first);
                     // unknown side-effect indirect-call
                     if (CI->isIndirectCall() && !potentialAllocs.count(CI))
                         llmEnable = false;
@@ -160,7 +160,7 @@ bool DebugPass::doModulePass(Module *M) {
                         if (!sideEffectCalledStr.empty())
                             sideEffectCalledStr = sideEffectCalledStr.substr(0, sideEffectCalledStr.size() - 1);
 
-                        for (CallInst* allocCI: visitedAllocCalls) {
+                        for (CallBase* allocCI: visitedAllocCalls) {
                             if (allocCI->isIndirectCall()) {
                                 for (Function* allocCallee: Ctx->Callees[allocCI])
                                     indirectAllocCalled.insert(removeFuncNumberSuffix(allocCallee->getName().str()));

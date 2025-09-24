@@ -1,14 +1,13 @@
 //
 // Created by prophe cheng on 2025/4/11.
 //
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Operator.h"
-#include "llvm/IR/DebugInfoMetadata.h"
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Operator.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <queue>
 
 #include "Passes/AllocWrapperDetect/Heuristic/AWDPass.h"
-
-#include <queue>
 
 bool AWDPass::doInitialization(Module* M) {
     // collect internal defined function names
@@ -20,7 +19,7 @@ bool AWDPass::doInitialization(Module* M) {
     }
 
     OP << "alloc function include:\n";
-    for (string funcName: allocFuncsNames)
+    for (const string& funcName: allocFuncsNames)
         OP << funcName << " , ";
     OP << "\n";
 
@@ -31,7 +30,7 @@ bool AWDPass::doInitialization(Module* M) {
             continue;
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // if call to malloc
-            if (CallInst* CI = dyn_cast<CallInst>(&*i)) {
+            if (CallBase* CI = dyn_cast<CallBase>(&*i)) {
                 Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 if (CF && allocFuncsNames.count(CF->getName().str())) {
                     baseAllocCalls.insert(CI);
@@ -55,13 +54,13 @@ bool AWDPass::doInitialization(Module* M) {
 
 // 只要发现了新的wrapper，就返回true
 bool AWDPass::doModulePass(Module* M) {
-    set<CallInst*> visitedCallInsts;
-    for (CallInst* baseAllocCI: baseAllocCalls) {
+    set<CallBase*> visitedCallInsts;
+    for (CallBase* baseAllocCI: baseAllocCalls) {
         // 对于每个alloc call，检查其是否流入return value
-        queue<CallInst*> worklist;
+        queue<CallBase*> worklist;
         worklist.push(baseAllocCI);
         while (!worklist.empty()) {
-            CallInst* curCI = worklist.front();
+            CallBase* curCI = worklist.front();
             Function* curF = curCI->getFunction();
             worklist.pop();
             if (visitedCallInsts.count(curCI))
@@ -75,7 +74,7 @@ bool AWDPass::doModulePass(Module* M) {
                 if (!AllocWrappers.count(curF)) {
                     AllocWrappers.insert(curF);
                     // check whether the caller could be returned in that function
-                    for (CallInst* caller: Ctx->Callers[curF])
+                    for (CallBase* caller: Ctx->Callers[curF])
                         worklist.push(caller);
                 }
             }
@@ -117,7 +116,7 @@ bool AWDPass::traceValueFlow(Value* V, set<Value*>& visitedValues) {
                 return true;
         }
 
-        else if (CallInst* CI = dyn_cast<CallInst>(U)) {
+        else if (CallBase* CI = dyn_cast<CallBase>(U)) {
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
             if (CF) {
                 // p = memcpy(p1, ...) 与p = p1等效

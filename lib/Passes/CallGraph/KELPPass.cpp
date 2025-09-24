@@ -2,7 +2,7 @@
 // Created by prophe cheng on 2025/4/10.
 //
 
-#include "llvm/IR/InstIterator.h"
+#include <llvm/IR/InstIterator.h>
 #include "Passes/CallGraph/KELPPass.h"
 
 // 与FLTA和MLTA不同，Kelp这里暂时不把confined address taken function添加金Ctx->AddressTakenFuncs
@@ -87,7 +87,7 @@ bool KELPPass::doInitialization(Module* M) {
             continue;
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             Instruction *I = &*i;
-            if (CallInst* CI = dyn_cast<CallInst>(I)) {
+            if (CallBase* CI = dyn_cast<CallBase>(I)) {
                 if (!CI->isIndirectCall())
                     continue;
                 set<Function*> callees;
@@ -122,7 +122,7 @@ bool KELPPass::doInitialization(Module* M) {
         bool flag = true;
         // whether F is confined
         for (User* U : F.users()) {
-            if (CallInst* CI = dyn_cast<CallInst>(U)) {
+            if (CallBase* CI = dyn_cast<CallBase>(U)) {
                 Function* _Callee = CommonUtil::getBaseFunction(CI->getCalledOperand());
                 if (!CI->isIndirectCall() && _Callee) {
                     // systemCall(...,f,...)
@@ -152,7 +152,7 @@ bool KELPPass::doInitialization(Module* M) {
     for (Function* PCF: potentialConfFuncs) {
         bool flag = true;
         for (User* U : PCF->users()) {
-            if (CallInst* CI = dyn_cast<CallInst>(U)) {
+            if (CallBase* CI = dyn_cast<CallBase>(U)) {
                 // direct call PCF, continue
                 if (CI->getCalledOperand() == PCF)
                     continue;
@@ -183,10 +183,9 @@ bool KELPPass::doInitialization(Module* M) {
 
         // 如果该全局变量有初始化操作
         if (GV->hasInitializer()) {
-            Type *ITy = GV->getInitializer()->getType();
+            Type* ITy = GV->getInitializer()->getType();
             if (!ITy->isPointerTy() && !isCompositeType(ITy)) // 如果不是指针类型或者复杂数据类型，跳过
                 continue;
-
             // 保存该全局变量
             Ctx->Globals[GV->getGUID()] = GV;
             // 解析全局变量的initializer
@@ -267,7 +266,7 @@ bool KELPPass::doFinalization(Module *M) {
 }
 
 // resolve complex indirect calls
-void KELPPass::analyzeIndCall(CallInst* CI, FuncSet* FS) {
+void KELPPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
     if (simpleIndCalls.count(CI)) {
         FS->insert(Ctx->Callees[CI].begin(), Ctx->Callees[CI].end());
         return;
@@ -284,7 +283,7 @@ bool KELPPass::forwardAnalyze(Value* V) {
         if (user == V)
             continue;
             // if function pointer: f is used in CallInst, it is either call: f(xxx) or pass arguments f1(f,...).
-        else if (CallInst* CI = dyn_cast<CallInst>(user)) {
+        else if (CallBase* CI = dyn_cast<CallBase>(user)) {
             if (CI->isIndirectCall()) {
                 // if f is the called operand, ok
                 if (CI->getCalledOperand() == V)
@@ -375,7 +374,7 @@ bool KELPPass::resolveSFP(Value* User, Value* V, set<Function*>& callees, set<Va
             return false;
 
         // Note: recursive call
-        for (CallInst* Caller: Ctx->Callers[F]) {
+        for (CallBase* Caller: Ctx->Callers[F]) {
             Function* PF = Caller->getFunction();
             if (visitedFuncs.count(PF))
                 continue;
@@ -386,7 +385,7 @@ bool KELPPass::resolveSFP(Value* User, Value* V, set<Function*>& callees, set<Va
     }
 
         // function pointer: f = getF(...), where getF return function pointer.
-    else if (CallInst* CI = dyn_cast<CallInst>(V)) {
+    else if (CallBase* CI = dyn_cast<CallBase>(V)) {
         // if function pointer is retrived by indirect call, we conservatively deem it as non-simple function pointer
         if (CI->isIndirectCall())
             return false;

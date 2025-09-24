@@ -9,7 +9,7 @@
 
 class KELPPass: public MLTADFPass {
 private:
-    set<CallInst*> simpleIndCalls;
+    set<CallBase*> simpleIndCalls;
     set<Function*> confinedAddrTakenFuncs;
     map<GlobalVariable*, set<Function*>> confinedGlobs2Funcs;
     map<string, int> sysAPIs = {
@@ -29,7 +29,7 @@ public:
 
     bool doFinalization(Module *M) override;
 
-    void analyzeIndCall(CallInst* CI, FuncSet* FS) override;
+    void analyzeIndCall(CallBase* CI, FuncSet* FS) override;
 
     bool forwardAnalyze(Value* V);
 
