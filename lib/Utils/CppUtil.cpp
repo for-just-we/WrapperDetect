@@ -203,11 +203,11 @@ bool CppUtil::isConstructor(const Function* F) {
     if (funcName.compare(0, vfunPreLabel.size(), vfunPreLabel) != 0)
         return false;
     DemangledName dname = demangle(funcName.c_str());
-    if (dname.className.size() == 0)
+    if (dname.className.empty())
         return false;
     stripBracketsAndNamespace(dname);
     /// TODO: on mac os function name is an empty string after demangling
-    return dname.className.size() > 0 &&
+    return !dname.className.empty() &&
            dname.className.compare(dname.funcName) == 0;
 }
 
@@ -221,7 +221,7 @@ bool CppUtil::isDestructor(const Function* F) {
     if (dname.className.size() == 0)
         return false;
     stripBracketsAndNamespace(dname);
-    return (dname.className.size() > 0 && dname.funcName.size() > 0 &&
+    return (!dname.className.empty() && !dname.funcName.empty() &&
             dname.className.size() + 1 == dname.funcName.size() &&
             dname.funcName.compare(0, 1, "~") == 0 &&
             dname.className.compare(dname.funcName.substr(1)) == 0);

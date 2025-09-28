@@ -91,7 +91,7 @@ void CppCGPass::connectInheritEdgeViaCall(const Function* F, const CallBase* CB)
         // make sure the called constructor has the same this ptr with this constructor
         if (csThisPtr != nullptr && samePtr) {
             DemangledName basename = CppUtil::demangle(callee->getName().str());
-            if (!isa<CallBase>(csThisPtr) && basename.className.size() > 0) {
+            if (!isa<CallBase>(csThisPtr) && !basename.className.empty()) {
                 BottomUpClassHierarchyChain[dname.className].insert(basename.className);
                 TopDownClassHierarchyChain[basename.className].insert(dname.className);
             }
@@ -110,7 +110,7 @@ void CppCGPass::connectInheritEdgeViaStore(const Function* F, const StoreInst* S
                     const Value* gepval = bcce->getOperand(0);
                     if (CppUtil::isValVtbl(gepval)) {
                         string vtblClassName = CppUtil::getClassNameFromVtblObj(gepval->getName().str());
-                        if (vtblClassName.size() > 0 && dname.className.compare(vtblClassName) != 0){
+                        if (!vtblClassName.empty() && dname.className.compare(vtblClassName) != 0){
                             BottomUpClassHierarchyChain[dname.className].insert(vtblClassName);
                             TopDownClassHierarchyChain[vtblClassName].insert(dname.className);
                         }
@@ -211,7 +211,7 @@ void CppCGPass::analyzeVTables(Module* M) {
                                 else
                                     pure_abstract &= false;
                                 DemangledName dname = CppUtil::demangle(f->getName().str());
-                                if (dname.className.size() > 0 && vtblClassName.compare(dname.className) != 0) {
+                                if (!dname.className.empty() && vtblClassName.compare(dname.className) != 0) {
                                     BottomUpClassHierarchyChain[vtblClassName].insert(dname.className);
                                     TopDownClassHierarchyChain[dname.className].insert(vtblClassName);
                                 }
@@ -272,13 +272,13 @@ void CppCGPass::analyzeVTables(Module* M) {
                         else
                             foo(operand);
                     }
-                    if (is_virtual && virtualFunctions.size() > 0) {
+                    if (is_virtual && !virtualFunctions.empty()) {
                         for (int j = 0; j < null_ptr_num; ++j) {
                             const Function* fun = virtualFunctions[j];
                             virtualFunctions.insert(virtualFunctions.begin(), fun);
                         }
                     }
-                    if (virtualFunctions.size() > 0)
+                    if (!virtualFunctions.empty())
                         virtualFuncVecs[vtblClassName].push_back(virtualFunctions);
 
                 }
