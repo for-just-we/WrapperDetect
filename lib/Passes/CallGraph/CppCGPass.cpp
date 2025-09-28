@@ -123,7 +123,7 @@ void CppCGPass::connectInheritEdgeViaStore(const Function* F, const StoreInst* S
 
 /*
  * do the following things:
- * 1. initialize virtualFunctions for each class
+ * 1. initialize virtual Functions for each class
  * 2. mark multi-inheritance classes
  * 3. mark pure abstract classes
  *
@@ -159,7 +159,7 @@ void CppCGPass::analyzeVTables(Module* M) {
         if (CppUtil::isValVtbl(globalvalue) && globalvalue->getNumOperands() > 0) {
             const ConstantStruct* vtblStruct = CppUtil::getVtblStruct(globalvalue);
             string vtblClassName = CppUtil::getClassNameFromVtblObj(globalvalue->getName().str());
-
+            vtables[vtblClassName] = globalvalue;
             for (unsigned int ei = 0; ei < vtblStruct->getNumOperands(); ++ei) {
                 const ConstantArray* vtbl = dyn_cast<ConstantArray>(vtblStruct->getOperand(ei));
                 assert(vtbl && "Element of initializer not an array?");
@@ -279,7 +279,7 @@ void CppCGPass::analyzeVTables(Module* M) {
                         }
                     }
                     if (virtualFunctions.size() > 0)
-                        virtualFuncVecs.push_back(virtualFunctions);
+                        virtualFuncVecs[vtblClassName].push_back(virtualFunctions);
 
                 }
                 if (pure_abstract == true)
@@ -298,6 +298,16 @@ void CppCGPass::addFuncToFuncVector(vector<const Function*> &v, const Function* 
         v.push_back(fun);
 }
 
-void CppCGPass::analyzeVirtualCall(CallBase* callInst, FuncSet* FS) {
-
+void CppCGPass::analyzeVirtualCall(CallBase* CB, FuncSet* FS) {
+    // 获取this指针
+//    const Value* vtable = CppUtil::getVCallVtblPtr(CB);
+//    set<const GlobalValue*> vtbls;
+//
+//    // 根据this指针获取class
+//    const Value* thisPtr = CppUtil::getVCallThisPtr(CB);
+//    Type* thisType = thisPtr->getType();
+//    assert(thisType->isPointerTy() && "this ptr should be a point\n");
+//    Type* classType = thisType->getNonOpaquePointerElementType();
+//    string typeName = classType->getStructName().str();
+//    getVFnsFromVtbls(CB, vtbls, FS);
 }

@@ -13,6 +13,7 @@ using namespace std;
 
 bool MLTAPass::doInitialization(Module* M) {
     OP<< "#" << MIdx <<" Initializing: "<<M->getName()<<"\n";
+    CallGraphPass::doInitialization(M);
     ++MIdx;
 
     DLMap[M] = &(M->getDataLayout());

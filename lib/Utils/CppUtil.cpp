@@ -324,3 +324,21 @@ Function* CppUtil::getThunkTarget(const Function* F) {
 
     return ret;
 }
+
+
+/*
+ * get the ptr "vtable" for a given virtual callsite:
+ * %vtable = load ...
+ * %vfn = getelementptr %vtable, idx
+ * %x = load %vfn
+ * call %x (...)
+ */
+const Value* CppUtil::getVCallVtblPtr(const CallBase* cs) {
+    const LoadInst* loadInst = dyn_cast<LoadInst>(cs->getCalledOperand());
+    assert(loadInst != nullptr);
+    const Value* vfuncptr = loadInst->getPointerOperand();
+    const GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(vfuncptr);
+    assert(gepInst != nullptr);
+    const Value* vtbl = gepInst->getPointerOperand();
+    return vtbl;
+}

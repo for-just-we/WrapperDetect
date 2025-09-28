@@ -21,7 +21,49 @@
 
 // alloc wrapper detection
 #include "Passes/AllocWrapperDetect/Debug/DebugPass.h"
-#include "Utils/Basic/Options.h"
+
+// Command line parameters.
+static cl::list<string> InputFilenames(
+        cl::Positional,
+        cl::OneOrMore,
+        cl::desc("<input bitcode files>"));
+
+// 默认采用FLTA
+static cl::opt<int> ICallAnalysisType(
+        "icall-analysis-type",
+        cl::desc("select which call analysis to use: 1 --> FLTA, 2 --> MLTA, 3 --> Data Flow Enhanced MLTA, 4 --> Kelp, 5 --> Cpp Callgraph Analysis"),
+        cl::NotHidden, cl::init(4));
+
+// wrapper analysis type
+static cl::opt<int> WrapperAnalysisType(
+        "wrapper-analysis-type",
+        cl::desc("select which wrapper analysis to use: 1 --> AWDPass, 2 --> BUAWDPass, 3 --> HAWDPass"),
+        cl::NotHidden, cl::init(1)
+);
+
+// max_type_layer
+static cl::opt<int> MaxTypeLayer(
+        "max-type-layer",
+        cl::desc("Multi-layer type analysis for refining indirect-call targets"),
+        cl::NotHidden, cl::init(10));
+
+static cl::opt<bool> DebugMode(
+        "debug-mode",
+        cl::desc("debug mode"),
+        cl::init(false)
+);
+
+// indirect-call结果保存路径
+static cl::opt<string> IcallOutputFilePath(
+        "icall-output-file",
+        cl::desc("Indirect-Call Analysis Output file path, better to use absolute path"),
+        cl::init(""));
+
+// wrapper结果保存路径
+static cl::opt<string> WrapperOutputFilePath(
+        "wrapper-output-file",
+        cl::desc("Wrapper Analysis Output file path"),
+        cl::init(""));
 
 cl::opt<string> PreAnalyzedPath(
         "pre-analyzed-path",

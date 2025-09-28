@@ -46,6 +46,8 @@ public:
     static Function* getThunkTarget(const Function* F);
 
     static bool isCPPThunkFunction(const Function* F);
+
+    static const Value* getVCallVtblPtr(const CallBase* cs);
 };
 
 #endif //CPPUTILS_H

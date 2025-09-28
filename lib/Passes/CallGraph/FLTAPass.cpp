@@ -5,6 +5,7 @@
 #include "Passes/CallGraph/FLTAPass.h"
 
 bool FLTAPass::doInitialization(Module* M) {
+    CallGraphPass::doInitialization(M);
     OP<< "#" << MIdx <<" Initializing: "<<M->getName()<<"\n";
     ++MIdx;
 

@@ -28,16 +28,21 @@ private:
 
     unordered_map<string, size_t> ClassHierarchy;
 
-    vector<vector<const Function*>> virtualFuncVecs;
+    unordered_map<string, vector<vector<const Function*>>> virtualFuncVecs;
+
+    unordered_map<string, const GlobalValue*> vtables;
 
 
 public:
-    CppCGPass(GlobalContext *Ctx_): KELPPass(Ctx_) {
-        ID = "KELP pass";
+    CppCGPass(GlobalContext* Ctx_): KELPPass(Ctx_) {
+        ID = "cpp call graph pass\n";
     }
 
     // 进行class hierachy分析
     bool doInitialization(Module*) override;
+
+    // 求解virtual call
+    void analyzeVirtualCall(CallBase* callInst, FuncSet* FS) override;
 
     // F is a constructor or destructor
     void connectInheritEdgeViaCall(const Function* F, const CallBase* cs);
@@ -49,9 +54,6 @@ public:
     void analyzeVTables(Module* M);
 
     void addFuncToFuncVector(vector<const Function*> &v, const Function* fun);
-
-    // 求解virtual call
-    void analyzeVirtualCall(CallBase* callInst, FuncSet* FS) override;
 };
 
 #endif //CHAPASS_H

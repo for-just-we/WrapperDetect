@@ -1,8 +1,5 @@
 //
-// Created by prophe cheng on 2025/5/23.
 //
-
-// LLM-enhanced wrapper analysis
 
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/PrettyStackTrace.h>
@@ -23,14 +20,7 @@
 #include "Passes/CallGraph/KELPPass.h"
 #include "Passes/CallGraph/CppCGPass.h"
 
-// alloc wrapper analysis
-#include "Passes/AllocWrapperDetect/LLM/IntraAWDPass.h"
-
-#include "Utils/Basic/Tarjan.h"
-#include "Utils/Basic/Config.h"
-#include "Utils/Basic/SourceCodeInfo.h"
-
-#include "LLMQuery/LLMAnalyzer.h"
+#include "Passes/AllocWrapperDetect/Heuristic/KMeldPass.h"
 
 using namespace llvm;
 using namespace std;
@@ -47,13 +37,6 @@ static cl::opt<int> ICallAnalysisType(
         "icall-analysis-type",
         cl::desc("select which call analysis to use: 1 --> FLTA, 2 --> MLTA, 3 --> Data Flow Enhanced MLTA, 4 --> Kelp, 5 --> Cpp Callgraph Analysis"),
         cl::NotHidden, cl::init(4));
-
-// wrapper analysis type
-static cl::opt<int> WrapperAnalysisType(
-        "wrapper-analysis-type",
-        cl::desc("select which wrapper analysis to use: 1 --> AWDPass, 2 --> BUAWDPass, 3 --> HAWDPass"),
-        cl::NotHidden, cl::init(1)
-);
 
 // max_type_layer
 static cl::opt<int> MaxTypeLayer(
@@ -79,58 +62,7 @@ static cl::opt<string> WrapperOutputFilePath(
         cl::desc("Wrapper Analysis Output file path"),
         cl::init(""));
 
-// source code file
-cl::opt<string> SouceCodeInfoFile(
-        "source-info-file",
-        cl::desc("file storing source code information, in json format"),
-        cl::NotHidden, cl::init("")
-        );
-
-// prompt template加载路径
-cl::opt<string> PromptTemplateFile(
-        "prompt-template-file",
-        cl::desc("The resource file which contains prompt template"),
-        cl::init("../resources/templates.json"));
-
-// 温度
-cl::opt<float> Temperature(
-        "temperature",
-        cl::desc("temperature passed to LLM"),
-        cl::init(-1)
-        );
-
-cl::opt<string> Address(
-        "addr",
-        cl::desc("address of large language model"),
-        cl::init("localhost:8989")
-        );
-
-cl::opt<unsigned> RetryTime(
-        "retry",
-        cl::desc("retry time limit for query LLM"),
-        cl::init(3)
-        );
-
-cl::opt<unsigned> VoteTime(
-        "vote",
-        cl::desc("vote time"),
-        cl::init(5)
-        );
-
-cl::opt<string> LogDir(
-        "log-dir",
-        cl::desc("log path of LLM analysis results"),
-        cl::init("cout")
-        );
-
-cl::opt<string> WrapperInfoFile(
-        "wrapper-info",
-        cl::desc("log wrapper information"),
-        cl::init("")
-        );
-
 GlobalContext GlobalCtx;
-
 
 // 打印结果
 void PrintResults(GlobalContext* GCtx) {
@@ -197,6 +129,7 @@ void PrintResults(GlobalContext* GCtx) {
             delete &output;
         }
     }
+
 }
 
 
@@ -206,8 +139,7 @@ int main(int argc, char** argv) {
     PrettyStackTraceProgram X(argc, argv);
 
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
-
-    cl::ParseCommandLineOptions(argc, argv, "lawd analysis\n");
+    cl::ParseCommandLineOptions(argc, argv, "sawd analysis\n");
     SMDiagnostic Err;
 
     for (unsigned i = 0; i < InputFilenames.size(); ++i) {
@@ -225,35 +157,8 @@ int main(int argc, char** argv) {
         GlobalCtx.ModuleMaps[Module] = InputFilenames[i];
     }
 
-    if (SouceCodeInfoFile.empty()) {
-        OP << "please input valid source code information file\n";
-        return 0;
-    }
-
-    // 1. 打开 JSON 文件
-    std::ifstream file(PromptTemplateFile);
-    if (!file.is_open()) {
-        OP << "Error: Could not open file: " << PromptTemplateFile << "\n";
-        return 1;
-    }
-
-    // 2. 解析 JSON 数据
-    json jsonData;
-    try {
-        file >> jsonData; // 读取 JSON 文件到 jsonData
-    } catch (const json::parse_error& e) {
-        OP << "JSON parse error: " << e.what() << "\n";
-        return 1;
-    }
-
-    unordered_map<string, FunctionInfo> sourceInfos = parseSourceFileInfo(SouceCodeInfoFile);
-    OP << "parse source info done\n";
-
-    auto llmAnalyzer = new LLMAnalyzer(Address, Temperature, RetryTime, VoteTime);
-
     debug_mode = DebugMode;
     max_type_layer = MaxTypeLayer;
-
     auto start = high_resolution_clock::now();
     CallGraphPass* CGPass;
     // 进行indirect-call分析
@@ -278,33 +183,12 @@ int main(int argc, char** argv) {
     OP << "indirect call analysis spent: " << duration.count() << " seconds\n";
 
     start = high_resolution_clock::now();
-    HAWDPass* WDPass;
-    if (WrapperAnalysisType == 1)
-        WDPass = new IntraAWDPass(&GlobalCtx, sourceInfos, jsonData["summarizing"], llmAnalyzer,
-                                  jsonData["intra_sys"], jsonData["intra_user"], LogDir);
-    else {
-        cout << "unimplemnted wrapper analysis type, break\n";
-        return 0;
-    }
-
-    WDPass->run(GlobalCtx.Modules);
-    if (!WrapperInfoFile.empty())
-        dumpAllocationWrapperInfo(WDPass->function2AllocCalls, &GlobalCtx, WrapperInfoFile);
-
-    delete WDPass;
+    KMeldPass* pass = new KMeldPass(&GlobalCtx);
+    pass->run(GlobalCtx.Modules);
+    delete pass;
     end = high_resolution_clock::now();
     duration = duration_cast<seconds>(end - start);
     OP << "alloc wrapper analysis spent: " << duration.count() << " seconds\n";
-
-    OP << "LLM Spend: " << llmAnalyzer->totalLLMTime << ", input tokens: " <<
-        llmAnalyzer->totalInputTokenNum << ", output tokens: " << llmAnalyzer->totalOutputTokenNum <<
-        ", query num: " << llmAnalyzer->totalQueryNum << "\n";
-
-    cout << "| " << duration.count() << " | " << llmAnalyzer->totalLLMTime << " | " << (duration.count() - llmAnalyzer->totalLLMTime) <<
-       " | " << llmAnalyzer->totalQueryNum << " | "
-       << std::fixed << std::setprecision(1) << static_cast<double>(llmAnalyzer->totalLLMTime) / llmAnalyzer->totalQueryNum <<
-       " | " << static_cast<double>(llmAnalyzer->totalInputTokenNum) / 1000.0 <<
-       " | " << static_cast<double>(llmAnalyzer->totalOutputTokenNum) / 1000.0 << "\n";
 
     // 打印分析结果
     PrintResults(&GlobalCtx);
