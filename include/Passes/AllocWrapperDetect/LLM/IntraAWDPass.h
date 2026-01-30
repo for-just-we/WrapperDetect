@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/5/15.
+// Created on 2025/5/15.
 //
 
 #ifndef WRAPPERDETECT_INTRAAWDPASS_H

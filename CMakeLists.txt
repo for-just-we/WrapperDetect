@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 project(WrapperDetect)
 
 set(CMAKE_CXX_STANDARD 17)
-# 下面2个编译命令非常重要，不要删，不然链接不到LLVMSupport等库
+
 set(CMAKE_CXX_FLAGS "-Wno-error=deprecated-declarations -Wno-deprecated-declarations")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # add -std=gnu++14

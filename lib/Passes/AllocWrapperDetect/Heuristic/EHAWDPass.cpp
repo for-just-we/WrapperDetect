@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/5/23.
+// Created on 2025/5/23.
 //
 
 #include <llvm/IR/InstIterator.h>
@@ -48,7 +48,6 @@ void EHAWDPass::identifySideEffectFunctions() {
 
                     // multiple potential callees， if one is side-effect function.
                     // then this function is side-effect.
-                    // 如果参数和返回值都是非complex类型并且没有load全局变量的操作，可以跳过
                     for (Function* CF: Ctx->Callees[CI]) {
                         if (func2SideEffectOps.count(CF)) {
                             func2SideEffectOps[F].insert(make_pair(CI, SideEffectType::Call));

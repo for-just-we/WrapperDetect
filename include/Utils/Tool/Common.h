@@ -1,6 +1,4 @@
-//
-// Created by prophe cheng on 2025/4/9.
-//
+
 
 #ifndef WRAPPERDETECT_COMMON_H
 #define WRAPPERDETECT_COMMON_H

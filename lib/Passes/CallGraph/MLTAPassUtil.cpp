@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/4/10.
+// Created on 2025/4/10.
 //
 
 #include "Passes/CallGraph/MLTAPass.h"
@@ -31,14 +31,13 @@ bool MLTAPass::getTargetsWithLayerType(size_t TyHash, int Idx, FuncSet &FS) {
     return true;
 }
 
-// 判断是不是复合类型
+// whether is composite type
 bool MLTAPass::isCompositeType(Type *Ty) {
     if (Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy())
         return true;
     return false;
 }
 
-// 返回该value的函数指针类型，如果该value不是函数指针，那么返回NULL
 Type* MLTAPass::getFuncPtrType(Value *V) {
     Type *Ty = V->getType();
     if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
@@ -50,18 +49,17 @@ Type* MLTAPass::getFuncPtrType(Value *V) {
     return nullptr;
 }
 
-// 获取value的base type
+// value's base type
 Value* MLTAPass::recoverBaseType(Value *V) {
     if (Instruction *I = dyn_cast<Instruction>(V)) {
         map<Value*, Value*> &AliasMap = AliasStructPtrMap[I->getFunction()];
-        // 如果是int8*类型并且被cast到其它复杂数据指针类型
+        // int8* cast to other composite pointer type
         if (AliasMap.find(V) != AliasMap.end())
             return AliasMap[V];
     }
     return nullptr;
 }
 
-// 要么初始值是function，要么一直cast，不过这里没有考虑ptrtoint的情况了。
 Function* MLTAPass::getBaseFunction(Value *V) {
     if (Function *F = dyn_cast<Function>(V))
         if (!F->isIntrinsic())
@@ -69,8 +67,8 @@ Function* MLTAPass::getBaseFunction(Value *V) {
 
     Value *CV = V;
 
-    // 函数指针可能被cast到其它类型的函数指针
-    // 比如fptr_int f = (fptr_int)&f1对应的IR为 store void (i32)* bitcast (void (i64)* @f1 to void (i32)*), void (i32)** %f
+    // function pointer cast to other type
+    // For example, fptr_int f = (fptr_int)&f1 => IR, store void (i32)* bitcast (void (i64)* @f1 to void (i32)*), void (i32)** %f
     while (BitCastOperator *BCO = dyn_cast<BitCastOperator>(CV)) {
         Value *O = BCO->getOperand(0);
         if (Function *F = dyn_cast<Function>(O))
@@ -92,8 +90,8 @@ void MLTAPass::escapeType(Value *V) {
     }
 }
 
-// 假设var1.f1.f2 = (FromTy)var.
-// 那么typeIdxPropMap[type(var1)][f1_idx], typeIdxPropMap[type(var1.f2)][f2_idx] add (FromTy, Idx)
+// var1.f1.f2 = (FromTy)var.
+// typeIdxPropMap[type(var1)][f1_idx], typeIdxPropMap[type(var1.f2)][f2_idx] add (FromTy, Idx)
 void MLTAPass::propagateType(Value *ToV, Type *FromTy, int Idx) {
     list<typeidx_t> TyChain;
     bool Complete = true;
@@ -102,7 +100,6 @@ void MLTAPass::propagateType(Value *ToV, Type *FromTy, int Idx) {
     DBG << "To Value: " << getInstructionText(ToV) << "\n";
 
     for (auto T : TyChain) {
-        // 如果type和From Type匹配
         if (CommonUtil::typeHash(T.first) == CommonUtil::typeHash(FromTy) && T.second == Idx)
             continue;
 
@@ -115,7 +112,6 @@ void MLTAPass::propagateType(Value *ToV, Type *FromTy, int Idx) {
 // This function is to get the base type in the current layer.
 // To get the type of next layer (with GEP and Load), use
 // nextLayerBaseType() instead.
-// 这里有个trick，对结构体类型返回其类型，如果是primitive type或者函数指针类型，getBaseType返回null
 Type* MLTAPass::getBaseType(Value* V, set<Value*> &Visited) {
     if (!V)
         return nullptr;
@@ -132,10 +128,8 @@ Type* MLTAPass::getBaseType(Value* V, set<Value*> &Visited) {
         // The value itself is a pointer to a composite type
     else if (Ty->isPointerTy()) {
         Type* ETy = Ty->getPointerElementType();
-        // 如果是复杂数据结构指针类型
         if (isCompositeType(ETy))
             return ETy;
-            // 如果该value是void*类型并且被cast到其它复合数据类型，返回cast后的类型
         else if (Value *BV = recoverBaseType(V))
             return BV->getType()->getPointerElementType();
     }
@@ -167,7 +161,7 @@ Type* MLTAPass::getBaseType(Value* V, set<Value*> &Visited) {
 // Get the chain of base types for V
 // Complete: whether the chain's end is not escaping --- it won't
 // propagate further
-// Chain: 保存value V的type chain， V：被赋值的value，Complete：分析是否完备
+// Chain: value V's type chain， V：value，Complete
 bool MLTAPass::getBaseTypeChain(list<typeidx_t> &Chain, Value *V, bool &Complete) {
     Complete = true;
     Value *CV = V, *NextV = nullptr;
@@ -180,7 +174,6 @@ bool MLTAPass::getBaseTypeChain(list<typeidx_t> &Chain, Value *V, bool &Complete
         Chain.push_back(typeidx_c(BTy, 0));
     }
     Visited.clear();
-    // 沿着top-level variable的def-use chain进行分析
     while (nextLayerBaseType(CV, TyList, NextV, Visited))
         CV = NextV;
 
@@ -231,10 +224,6 @@ Type* MLTAPass::_getPhiBaseType(PHINode *PN, set<Value *> &Visited) {
 
 
 // Get the composite type of the lower layer. Layers are split by memory loads or GEP
-// 沿着top-level variable的def-use chain进行追踪
-// V: 当前层次的value，NextV：保存下一层value，TyList：保存当前value的类型层次
-// 需要注意的是在LLVM编译的时候，有的连续field访问比如 b.a.func，有时只对应1个getelementptr指令，有时会处理多个。
-// 一次nextLayerBaseType最多处理到一个getelementptr，如果有多个需要用while循环处理
 bool MLTAPass::nextLayerBaseType(Value* V, list<typeidx_t> &TyList,
                                  Value* &NextV, set<Value*> &Visited) {
     if (!V || isa<Argument>(V)) {
@@ -257,10 +246,8 @@ bool MLTAPass::nextLayerBaseType(Value* V, list<typeidx_t> &TyList,
             NextV = nullptr;
         return ret;
     }
-        // 如果是load指令
     else if (LoadInst* LI = dyn_cast<LoadInst>(V)) {
         NextV = LI->getPointerOperand();
-        // 求基地址的结构体层次
         return nextLayerBaseType(LI->getOperand(0), TyList, NextV, Visited);
     }
     else if (BitCastOperator* BCO = dyn_cast<BitCastOperator>(V)) {
@@ -317,9 +304,7 @@ bool MLTAPass::getGEPLayerTypes(GEPOperator *GEP, list<typeidx_t> &TyList) {
         // skip it for now
         Instruction *I = dyn_cast<Instruction>(PO);
         Value *BV = recoverBaseType(PO);
-        // 如果是int8*指针cast到其它指针
         if (BV) {
-            // 获取被cast到的指针类型
             ETy = BV->getType()->getPointerElementType();
             APInt Offset (ConstI->getBitWidth(),
                           ConstI->getZExtValue());
@@ -342,7 +327,7 @@ bool MLTAPass::getGEPLayerTypes(GEPOperator *GEP, list<typeidx_t> &TyList) {
         }
     }
 
-    // Indices保存getelementptr指令所有的索引，比如getelementptr inbounds %struct.ST, ptr %s, f1, f2, f3, f4 返回f1, f2, f3, f4
+    // Indices is index of getelementptr, like getelementptr inbounds %struct.ST, ptr %s, f1, f2, f3, f4 => f1, f2, f3, f4
     if (Indices.empty()) {
         for (auto it = GEP->idx_begin(); it != GEP->idx_end(); it++) {
             ConstantInt *ConstII = dyn_cast<ConstantInt>(it->get());
@@ -353,7 +338,7 @@ bool MLTAPass::getGEPLayerTypes(GEPOperator *GEP, list<typeidx_t> &TyList) {
         }
     }
 
-    // 遍历结构体层次, 这里会忽略第1项，关于第一项介绍参考：https://llvm.org/docs/GetElementPtr.html#what-is-the-first-index-of-the-gep-instruction
+    // ignore the first index, refer to：https://llvm.org/docs/GetElementPtr.html#what-is-the-first-index-of-the-gep-instruction
     for (auto it = Indices.begin() + 1; it != Indices.end(); it++) {
         int Idx = *it;
         TmpTyList.push_front(typeidx_c(ETy, Idx));
@@ -430,7 +415,6 @@ void MLTAPass::escapeFuncPointer(Value* PO, Instruction* I) {
 void MLTAPass::intersectFuncSets(FuncSet &FS1, FuncSet &FS2, FuncSet &FS) {
     FS.clear();
     for (auto F : FS1) {
-        // 如果FS1中的F在FS2中
         if (FS2.find(F) != FS2.end())
             FS.insert(F);
     }

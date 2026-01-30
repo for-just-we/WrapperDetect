@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/4/10.
+// Created on 2025/4/10.
 //
 #include <llvm/IR/Operator.h>
 #include <llvm/IR/InstIterator.h>
@@ -16,26 +16,22 @@ bool MLTAPass::doInitialization(Module* M) {
     CallGraphPass::doInitialization(M);
     ++MIdx;
 
-    DLMap[M] = &(M->getDataLayout());
+    DLMap[M] = &M->getDataLayout();
     Int8PtrTy[M] = Type::getInt8PtrTy(M->getContext()); // int8 type id: 15
     IntPtrTy[M] = DLMap[M]->getIntPtrType(M->getContext()); // int type id: 13
 
     set<User*> CastSet;
 
     unsigned dbgNum = 0;
-    // Iterate and process globals，处理该module内的全局变量
+    // Iterate and process globals
     for (Module::global_iterator gi = M->global_begin(); gi != M->global_end(); ++gi) {
         GlobalVariable* GV = &*gi;
 
-        // 如果该全局变量有初始化操作
         if (GV->hasInitializer()) {
             Type *ITy = GV->getInitializer()->getType();
             if (!ITy->isPointerTy() && !isCompositeType(ITy)) // 如果不是指针类型或者复杂数据类型，跳过
                 continue;
-
-            // 保存该全局变量
             Ctx->Globals[GV->getGUID()] = GV;
-            // 解析全局变量的initializer
             typeConfineInInitializer(GV);
         }
     }
@@ -47,8 +43,7 @@ bool MLTAPass::doInitialization(Module* M) {
         if (F.hasAddressTaken() && !isVirtualFunction(&F)) {
             Ctx->AddressTakenFuncs.insert(&F);
             size_t FuncHash = CommonUtil::funcHash(&F, false);
-            // 添加FLTA的结果
-            // function的hash，用来进行FLTA，后面可能会修改
+            // function的hash
             Ctx->sigFuncsMap[FuncHash].insert(&F);
         }
 
@@ -56,11 +51,8 @@ bool MLTAPass::doInitialization(Module* M) {
         if (F.isDeclaration())
             continue;
 
-        // 计算类型别名信息
         collectAliasStructPtr(&F);
-        // 计算结构体field和function之间的约束
         typeConfineInFunction(&F);
-        // 类型传播
         typePropInFunction(&F);
 
         // Collect global function definitions.
@@ -68,16 +60,15 @@ bool MLTAPass::doInitialization(Module* M) {
             Ctx->GlobalFuncMap[F.getGUID()] = &F;
     }
 
-    // 处理外部链接的函数
     if (Ctx->Modules.size() == MIdx) {
         // Map the declaration functions to actual ones
         // NOTE: to delete an item, must iterate by reference
         for (auto &SF : Ctx->sigFuncsMap) {
-            // 遍历所有的external link function
+            // traverse all external link function
             for (auto F : SF.second) {
                 if (!F)
                     continue;
-                // 保留外部链接的函数
+                // external linked functions
                 if (F->isDeclaration()) {
                     SF.second.erase(F);
                     if (Function *AF = Ctx->GlobalFuncMap[F->getGUID()])
@@ -105,7 +96,6 @@ bool MLTAPass::doInitialization(Module* M) {
 void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
     // Initial set: first-layer results
     // TODO: handling virtual functions
-    // 获得FLTA结果
     FLTAPass::analyzeIndCall(CI, FS);
 
     // No need to go through MLTA if the first layer is empty
@@ -143,7 +133,7 @@ void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
         nextLayerBaseType(CV, TyList, NextV, Visited);
         if (TyList.empty())
             break;
-        // 如果类型层次是B.a(A).f，那么TyList依次为 (A, f), (B, a)
+        // B.a(A).f，TyList is (A, f), (B, a)
         for (typeidx_t TyIdx: TyList) {
             if (LayerNo >= max_type_layer)
                 break;
@@ -169,7 +159,7 @@ void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
                 getDependentTypes(TyIdx.first, TyIdx.second, PropSet);
                 // for each PropType in type-propagation[CurType] do
                 for (auto Prop: PropSet) {
-                    // 如果存在fromTypeIdx --> curTypeIDx
+                    // fromTypeIdx --> curTypeIDx
                     getTargetsWithLayerType(Prop.first, Prop.second, FS2);
                     FS1.insert(FS2.begin(), FS2.end());
                 }
@@ -186,8 +176,7 @@ void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
             }
             CV = NextV;
 
-            // 如果出现了层次结构体赋值，比如test13中的b.a = a2; 此时B::a并不会confine到function，应该被标记为escaped，但是B::a不是函数指针field。
-            // 因此将B标注为escaped type就有必要。
+            // b.a = a2 in test13; B::a not confine to function，marked escaped，B::a not a function field。
             if (typeCapSet.find(CommonUtil::typeHash(TyIdx.first)) != typeCapSet.end()) {
                 ContinueNextLayer = false;
                 DBG << "found escaped type: " << getInstructionText(TyIdx.first) << " stop\n";
@@ -211,13 +200,9 @@ void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
     }
 }
 
-// 分析全局变量并收集function被分配给了哪些type，分析是field sensitive的
 bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
     DBG << "Evaluation for global variable: " << GV->getName().str() << "\n";
-    // 获取initializer信息
     Constant *Ini = GV->getInitializer();
-    // 不是聚合常量，跳过。Aggregate Constants（聚合常量）是指由多个元素组成的常量值，如结构体（struct）或数组（array）。
-    // 聚合常量是LLVM IR的一种表示形式，用于表示高级语言中的复合数据类型。
     if (!isa<ConstantAggregate>(Ini))
         return false;
 
@@ -228,55 +213,44 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
     set<Value*> Visited;
     LU.push_back(Ini);
 
-    // BFS自顶向下访问聚合常量
     while (!LU.empty()) {
         User* U = LU.front();
         LU.pop_front();
-        // 如果该聚合常量访问过，跳过
         if (Visited.find(U) != Visited.end())
             continue;
         
         Visited.insert(U);
-        // 获取聚合常量的类型
         Type* UTy = U->getType();
         assert(!UTy->isFunctionTy());
-        // 如果是结构体类型的聚合常量并且子常量数量大于0，那么判定常量数量等于结构体field数量
         if (StructType *STy = dyn_cast<StructType>(UTy)) {
             if (U->getNumOperands() > 0)
                 assert(STy->getNumElements() == U->getNumOperands());
             else
                 continue;
         }
-        // 遍历聚合常量中的每个子常量
         for (auto oi = U->op_begin(), oe = U->op_end(); oi != oe; ++oi) {
             Value* O = *oi;
             Type* OTy = O->getType(); // 该常量的类型
-            // oi->getOperandNo为O在聚合常量中的索引，U为父常量
-            // 表示O是U的第oi->getOperandNo个子常量
             ContainersMap[O] = make_pair(U, oi->getOperandNo());
             string subConstantText = getInstructionText(O);
 
-            Function* FoundF = nullptr; // 当前子常量下的Function Pointer变量
-            // Case 1: function address is assigned to a type，如果当前子常量是函数指针
+            Function* FoundF = nullptr; // child constant of Function Pointer
+            // Case 1: function address is assigned to a type
             if (Function* F = dyn_cast<Function>(O))
-                FoundF = F; // 如果O是函数类型
+                FoundF = F; // O is function type
             //  a composite-type object (value) is assigned to a
             // field of another composite-type object
-            // 如果子常量O仍然是聚合常量，则加入worklist
             else if (isCompositeType(OTy)) {
                 // recognize nested composite types
                 User* OU = dyn_cast<User>(O);
                 LU.push_back(OU);
             }
-            // case2: 该常量为pointer cast to int, 也就是将函数指针cast到intptr_t或者uintptr_t类型
-            // 比如 1.(int)func 这种将函数地址cast到int 或者为 2.(int)&{...} 将聚合常量地址cast到int
+            // case2: pointer cast to int, function pointer cast to intptr_t/uintptr_t
+            // 1.(int)func 2.(int)&{...} aggregated contant cast to int
             else if (PtrToIntOperator *PIO = dyn_cast<PtrToIntOperator>(O)) {
-                // PIO->getOperand(0)返回ptrtoint的指针变量
-                // 如果是函数指针
                 Function* FF = dyn_cast<Function>(PIO->getOperand(0));
                 if (FF)
                     FoundF = FF;
-                    // 有可能是case4，指向其它全局变量的指针
                 else {
                     User* OU = dyn_cast<User>(PIO->getOperand(0)); // 如果指针指向聚合常量
                     if (isa<GlobalVariable>(OU)) {
@@ -295,7 +269,6 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
                 if (CF)
                     FoundF = CF;
                 else {
-                    // 获取source操作数，有可能是case4，指向其它复杂数据类型全局变量的指针
                     User* OU = dyn_cast<User>(CO->getOperand(0));
                     if (isa<GlobalVariable>(OU)) {
                         if (OU->getType()->isStructTy())
@@ -308,20 +281,18 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
             // Case 3: a reference (i.e., pointer) of a composite-type
             // object is assigned to a field of another composite-type
             // object
-            // 如果是指针类型
             else if (PointerType *POTy = dyn_cast<PointerType>(OTy)) {
-                // 如果是NULL
                 if (isa<ConstantPointerNull>(O))
                     continue;
                 // if the pointer points a composite type, conservatively
                 // treat it as a type cap (we cannot get the next-layer type
                 // if the type is a cap)
                 User* OU = dyn_cast<User>(O);
-                // 如果指针指向全局变量，比如test4.c中 struct B b = { .a = &ba }; 这种
+                // test4.c => struct B b = { .a = &ba };
                 if (GlobalVariable* GO = dyn_cast<GlobalVariable>(OU)) {
                     DBG << "subconstant: " << subConstantText << " point to global variable: "
                         << GO->getName().str() << "\n";
-                    Type* Ty = POTy->getNonOpaquePointerElementType(); // 获取指针变量的类型
+                    Type* Ty = POTy->getNonOpaquePointerElementType();
                     // FIXME: take it as a confinement instead of a cap
                     if (Ty->isStructTy()) {
                         typeCapSet.insert(CommonUtil::typeHash(Ty));
@@ -348,10 +319,10 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
                 while (ContainersMap.find(CV) != ContainersMap.end()) {
                     auto Container = ContainersMap[CV];
 
-                    Type* CTy = Container.first->getType(); // 父聚合常量的类型
-                    set<size_t> TyHS; // 所有满足当前层次对应的结构体type的hash
+                    Type* CTy = Container.first->getType();
+                    set<size_t> TyHS;
                     TyHS.insert(CommonUtil::typeHash(CTy));
-                    for (auto TyH: TyHS)  // 遍历所有可以和当前层次类型对应上的类型hash
+                    for (auto TyH: TyHS)
                         typeIdxFuncsMap[TyH][Container.second].insert(FoundF);
 
                     Visited_.insert(CV);
@@ -368,33 +339,29 @@ bool MLTAPass::typeConfineInInitializer(GlobalVariable *GV) {
 }
 
 // This function precisely collect alias types for general pointers
-// 收集Function F中的cast操作，主要收集char*, void*到其它复杂结构指针类型的cast，记录对应变量转换
-// 这里FromValue必须是call指令的返回值。也就是某些返回void*类型函数的返回值,主要用来分析Fromvalue的类型。
-// AliasMap必须保证cast后类型的唯一性
+// collect char*, void* => other pointer type
+// FromValue must be callsite receiver。callee is void* type
 void MLTAPass::collectAliasStructPtr(Function *F) {
     map<Value*, Value*> &AliasMap = AliasStructPtrMap[F];
     set<Value*> ToErase;
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction *I = &*i;
-        // 遍历所有的cast情况
         if (CastInst *CI = dyn_cast<CastInst>(I)) {
             Value* FromV = CI->getOperand(0);
             // TODO: we only consider calls for now
-            if (!isa<CallBase>(FromV)) // FromTy是函数调用返回值
+            if (!isa<CallBase>(FromV))
                 continue;
 
-            Type* FromTy = FromV->getType(); // 原始类型
-            Type* ToTy = CI->getType(); // 转换后类型
-            // 必须是从void*类型指针cast到结构体类型
+            Type* FromTy = FromV->getType();
+            Type* ToTy = CI->getType();
             if (Int8PtrTy[F->getParent()] != FromTy)
                 continue;
-            // 转换后不是指针类型，跳过
             if (!ToTy->isPointerTy())
                 continue;
-            if (!isCompositeType(ToTy->getPointerElementType())) // 如果ToTy的基类型不是复杂类型
+            if (!isCompositeType(ToTy->getPointerElementType()))
                 continue;
 
-            if (AliasMap.find(FromV) != AliasMap.end()) { // FromV已有其它ToV
+            if (AliasMap.find(FromV) != AliasMap.end()) {
                 ToErase.insert(FromV);
                 continue;
             }
@@ -402,33 +369,28 @@ void MLTAPass::collectAliasStructPtr(Function *F) {
         }
     }
 
-    for (auto Erase: ToErase) // 不考虑多重重名的类型
+    for (auto Erase: ToErase)
         AliasMap.erase(Erase);
 }
 
-// 分析结构体field和address-taken function之间的约束
+// analyze field => address-taken function
 bool MLTAPass::typeConfineInFunction(Function *F) {
     DBG << "analyzing type confine in function: " << F->getName().str() << "\n";
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction *I = &*i;
-        // 如果是store
         if (StoreInst *SI = dyn_cast<StoreInst>(I))
             typeConfineInStore(SI);
-            // 访问所有参数包含了函数指针的函数调用
         else if (CallBase *CI = dyn_cast<CallBase>(I)) {
-            // 访问实参
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand()); // CF为被调用的函数
             for (User::op_iterator OI = CI->op_begin(), OE = CI->op_end(); OI != OE; ++OI) {
-                // 如果该参数为函数指针
-                if (Function* FF = dyn_cast<Function>(*OI)) { // 如果该参数是个函数对象，即将函数指针作为参数
+                if (Function* FF = dyn_cast<Function>(*OI)) {
                     if (FF->isIntrinsic())
                         continue;
-                    // 如果callsite是indirect-call, 不太确定这段代码的效果
                     if (CI->isIndirectCall()) {
-                        confineTargetFunction(*OI, FF); // 将实参的类型和F绑定
+                        confineTargetFunction(*OI, FF);
                         continue;
                     }
-                    // 如果不是间接调用，接着分析
+                    // not indirect-call
                     if (!CF)
                         continue;
                     // call target
@@ -436,12 +398,8 @@ bool MLTAPass::typeConfineInFunction(Function *F) {
                         CF = Ctx->GlobalFuncMap[CF->getGUID()];
                     if (!CF)
                         continue;
-                    // Arg为函数指针对应的形参
-                    if (Argument* Arg = CommonUtil::getParamByArgNo(CF, OI->getOperandNo())) { // CF为被调用的函数，这里返回函数指针对应的形参
-                        // U为函数CF中使用了该形参的指令
-                        // 遍历所有使用形参的指令
+                    if (Argument* Arg = CommonUtil::getParamByArgNo(CF, OI->getOperandNo())) {
                         for (auto U: Arg->users()) {
-                            // 如果使用形参的是store指令或者bitcast指令
                             if (StoreInst* _SI = dyn_cast<StoreInst>(U))
                                 confineTargetFunction(_SI->getPointerOperand(), FF);
                             else if (isa<BitCastOperator>(U))
@@ -460,7 +418,7 @@ void MLTAPass::typeConfineInStore(StoreInst* SI) {
     Value* PO = SI->getPointerOperand();
     Value* VO = SI->getValueOperand();
 
-    // 被store的是个function
+    // store a function
     Function* CF = getBaseFunction(VO->stripPointerCasts());
     if (!CF)
         return;
@@ -472,12 +430,11 @@ void MLTAPass::typeConfineInStore(StoreInst* SI) {
 }
 
 // cast有3种情况：
-// 1.store ptr value 2.结构体赋值 3.cast type1->type2
+// 1.store ptr value 2.struct assignment 3.cast type1->type2
 bool MLTAPass::typePropInFunction(Function *F) {
     // Two cases for propagation: store and cast.
     // For store, LLVM may use memcpy
     set<User*> CastSet;
-    // 遍历F中所有的store指令
     for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
         Instruction *I = &*i;
         Value *PO = nullptr, *VO = nullptr;
@@ -485,19 +442,18 @@ bool MLTAPass::typePropInFunction(Function *F) {
         // case1: store
         // *PO = VO
         if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-            PO = SI->getPointerOperand(); // store的指针变量，dest
-            VO = SI->getValueOperand(); // 被store的value，也就是函数地址，source
+            PO = SI->getPointerOperand();
+            VO = SI->getValueOperand();
             DBG << "store inst: " << getInstructionText(SI) << "\n";
         }
-            // case2: 用聚合常量给结构体变量赋值
         else if (CallBase *CI = dyn_cast<CallBase>(I)) {
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand()); // called function
-            if (CF) { // 如果是直接调用
+            if (CF) {
                 // LLVM may optimize struct assignment into a call to
                 // intrinsic memcpy
                 if (CF->getName() == "llvm.memcpy.p0i8.p0i8.i64") {
-                    PO = CI->getOperand(0); // dest指向结构体变量
-                    VO = CI->getOperand(1); // source指向聚合常量
+                    PO = CI->getOperand(0);
+                    VO = CI->getOperand(1);
                     DBG << "memcpy store: " << getInstructionText(CI) << "\n";
                 }
             }
@@ -507,7 +463,6 @@ bool MLTAPass::typePropInFunction(Function *F) {
             // TODO: if VO is a global with an initializer, this should be
             // taken as a confinement instead of propagation, which can
             // improve the precision
-            // 不分析聚合常量以及普通常量数据
             if (isa<ConstantAggregate>(VO) || isa<ConstantData>(VO))
                 continue;
 
@@ -522,9 +477,8 @@ bool MLTAPass::typePropInFunction(Function *F) {
             }
 
             Visited.clear();
-            // source操作数基类型
             Type* BTy = getBaseType(VO, Visited);
-            // Composite type，可能对应llvm.memcpy函数
+            // Composite type，llvm.memcpy
             if (BTy) {
                 propagateType(PO, BTy);
                 continue;
@@ -534,7 +488,7 @@ bool MLTAPass::typePropInFunction(Function *F) {
             // Function-pointer type
             if (FTy) {
                 if (!getBaseFunction(VO)) {
-                    // 从FTy cast到PO
+                    // FTy cast => PO
                     propagateType(PO, FTy);
                     // PO takes function pointer variable instead of function constant, should be deemed escaped.
                     escapeFuncPointer(PO, I);
@@ -543,11 +497,10 @@ bool MLTAPass::typePropInFunction(Function *F) {
                 else
                     continue;
             }
-            // 如果被store的变量VO不是指针类型，则跳过
+            // skip if VO not a pointer
             if (!VO->getType()->isPointerTy())
                 continue;
             else
-                // 如果到这步说明VO不是常量、
                 // General-pointer type for escaping
                 escapeType(PO);
         }
@@ -619,7 +572,7 @@ bool MLTAPass::typePropInFunction(Function *F) {
     return true;
 }
 
-// function F被赋值给了Value V，等于 v = F
+// function F assigned to Value V，equal to, v = F
 void MLTAPass::confineTargetFunction(Value* V, Function* F) {
     if (F->isIntrinsic())
         return;
@@ -627,7 +580,7 @@ void MLTAPass::confineTargetFunction(Value* V, Function* F) {
 
     list<typeidx_t> TyChain;
     bool Complete = true;
-    // 获取变量V的类型层次
+    // type hierachy of V
     getBaseTypeChain(TyChain, V, Complete);
     for (auto TI : TyChain) {
         DBG << TI.second << " field of Type: " << getInstructionText(TI.first) <<

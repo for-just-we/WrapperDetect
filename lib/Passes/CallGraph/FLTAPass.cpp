@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/4/10.
+// Created on 2025/4/10.
 //
 #include <llvm/IR/Instructions.h>
 #include "Passes/CallGraph/FLTAPass.h"
@@ -34,9 +34,8 @@ bool FLTAPass::doInitialization(Module* M) {
 }
 
 
-// 比对两个类型是否相等
+// compare two functions
 bool FLTAPass::fuzzyTypeMatch(Type* Ty1, Type* Ty2, Module *M1, Module *M2) {
-    // 如果两个类型一样，直接返回true
     if (Ty1 == Ty2)
         return true;
 
@@ -58,8 +57,6 @@ bool FLTAPass::fuzzyTypeMatch(Type* Ty1, Type* Ty2, Module *M1, Module *M2) {
         Ty2 = Ty2->getPointerElementType();
     }
 
-    // 如果都是结构体且属于同一个结构体类型
-    // 修改，不直接比较结构体名字，而是比较结构体hash
     if (Ty1->isStructTy() && Ty2->isStructTy() &&
         (CommonUtil::getValidStructName(dyn_cast<StructType>(Ty1)) ==
          CommonUtil::getValidStructName(dyn_cast<StructType>(Ty2))))

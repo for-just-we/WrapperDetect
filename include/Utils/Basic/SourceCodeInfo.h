@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/5/23.
+// Created on 2025/5/23.
 //
 
 #ifndef WRAPPERDETECT_SOURCECODEINFO_H

@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/4/13.
+// Created on 2025/4/13.
 //
 
 #include "Utils/Basic/Tarjan.h"

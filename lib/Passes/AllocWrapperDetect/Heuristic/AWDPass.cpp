@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/4/11.
+// Created on 2025/4/11.
 //
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
@@ -52,11 +52,10 @@ bool AWDPass::doInitialization(Module* M) {
     return false;
 }
 
-// 只要发现了新的wrapper，就返回true
+// find new wrapper, return true
 bool AWDPass::doModulePass(Module* M) {
     set<CallBase*> visitedCallInsts;
     for (CallBase* baseAllocCI: baseAllocCalls) {
-        // 对于每个alloc call，检查其是否流入return value
         queue<CallBase*> worklist;
         worklist.push(baseAllocCI);
         while (!worklist.empty()) {
@@ -109,7 +108,7 @@ bool AWDPass::traceValueFlow(Value* V, set<Value*>& visitedValues) {
 
         // only need one user flow to return
         // if "p1 = malloc(), ... p = phi(p1, p2), ... return p", still return true
-        // phi可能会出现环路，导致递归
+        // phi is cycle, lead to recursive
         else if (isa<BitCastInst>(U) || isa<PtrToIntInst>(U) || isa<IntToPtrInst>(U)
                 || isa<BitCastOperator>(U) || isa<PtrToIntOperator>(U) || isa<PHINode>(U)) {
             if (traceValueFlow(U, visitedValues))
@@ -119,15 +118,14 @@ bool AWDPass::traceValueFlow(Value* V, set<Value*>& visitedValues) {
         else if (CallBase* CI = dyn_cast<CallBase>(U)) {
             Function* CF = CommonUtil::getBaseFunction(CI->getCalledOperand());
             if (CF) {
-                // p = memcpy(p1, ...) 与p = p1等效
+                // p = memcpy(p1, ...) same as p = p1
                 if (copyAPI.count(CF->getName().str())) {
                     if (CI->getNumOperands() > 2 && CI->getArgOperand(0) == V)
                         if (traceValueFlow(CI, visitedValues))
                             return true;
                 }
-                // p = func(p1, ...), p1能够reach返回值，有效
+                // p = func(p1, ...), p1 reach return val
                 else if (!CF->isDeclaration() && !CF->getReturnType()->isVoidTy()) {
-                    // 计算参数索引
                     unsigned argNo = -1;
                     for (unsigned i = 0; i < CI->getNumOperands() - 1; ++i)
                         if (CI->getArgOperand(i) == V) {
@@ -135,7 +133,6 @@ bool AWDPass::traceValueFlow(Value* V, set<Value*>& visitedValues) {
                             break;
                         }
 
-                    // 考虑到可变参数函数的存在
                     if (argNo != -1 && argNo < CF->arg_size() && checkFuncArgRet(CF, argNo))
                         return true;
                 }

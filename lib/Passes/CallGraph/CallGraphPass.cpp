@@ -1,6 +1,4 @@
-//
-// Created by prophe cheng on 2025/4/9.
-//
+
 #include <llvm/Analysis/LoopPass.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>

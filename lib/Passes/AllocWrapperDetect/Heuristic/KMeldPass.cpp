@@ -81,31 +81,24 @@ bool KMeldPass::backwardAnalysis(Function* F) {
 
 // check whether a callsite of F: 1.null check, 2.initialization
 bool KMeldPass::forwardAnalysis(CallBase* CB) {
-    // 获取CB后面的指令
     bool hasNullCheck = false;
     bool hasInitialization = false;
 
-    // 获取CB后面的指令
     BasicBlock::iterator it(CB);
-    ++it; // 移动到下一条指令
+    ++it;
 
     if (it != CB->getParent()->end()) {
         Instruction* nextInst = &*it;
-        // 检查下一条指令是否是null check
         if (auto* icmp = dyn_cast<ICmpInst>(nextInst)) {
             if (isNullComparison(icmp, CB)) {
                 hasNullCheck = true;
-                // 第二步：在null check之后检查initialization
-                // 检查icmp后面是否是br指令
                 ++it;
                 if (it != CB->getParent()->end()) {
                     Instruction* afterIcmp = &*it;
                     BranchInst* nullCheckBr = dyn_cast<BranchInst>(afterIcmp);
 
-                    // 第二步：在分支后的基本块中检查initialization
                     if (nullCheckBr && nullCheckBr->isConditional())
                         hasInitialization = checkInitializationInSuccessorBlocks(nullCheckBr, CB);
-                    // 如果没有br指令，在当前基本块继续检查
                     else
                         hasInitialization = checkImmediateInitialization(afterIcmp, CB);
                 }
@@ -113,11 +106,9 @@ bool KMeldPass::forwardAnalysis(CallBase* CB) {
         }
     }
 
-    // 如果没有立即的null check，直接返回false
     if (!hasNullCheck)
         return false;
 
-    // 如果没有立即的null check，直接返回false
     if (!hasInitialization)
         return false;
 
@@ -138,7 +129,6 @@ bool KMeldPass::doFinalization(Module* M) {
     return false;
 }
 
-// 辅助函数：检查值是否为null
 bool KMeldPass::isNullValue(Value *v) {
     if (isa<ConstantPointerNull>(v))
         return true;
@@ -149,7 +139,6 @@ bool KMeldPass::isNullValue(Value *v) {
     return false;
 }
 
-// 检查是否为null比较
 bool KMeldPass::isNullComparison(ICmpInst *icmp, CallBase *targetCB) {
     if (!icmp || !icmp->isEquality())
         return false;
@@ -166,7 +155,7 @@ bool KMeldPass::isNullComparison(ICmpInst *icmp, CallBase *targetCB) {
 }
 
 
-// 检查是否是初始化调用（memcpy/memset等）
+// check initialization（memcpy/memset）
 bool KMeldPass::isInitializationCall(CallBase *call, Value *targetValue) {
     if (!call)
         return false;
@@ -177,15 +166,12 @@ bool KMeldPass::isInitializationCall(CallBase *call, Value *targetValue) {
 
     StringRef funcName = calledFunc->getName();
 
-    // 检查memcpy家族
     if (funcName.startswith("memcpy") || funcName.startswith("llvm.memcpy"))
         return call->getArgOperand(0) == targetValue;
 
-    // 检查memset家族
     if (funcName.startswith("memset") || funcName.startswith("llvm.memset"))
         return call->getArgOperand(0) == targetValue;
 
-    // 检查LLVM内存内置函数
     if (auto *intrinsic = dyn_cast<IntrinsicInst>(call)) {
         Intrinsic::ID id = intrinsic->getIntrinsicID();
         if (id == Intrinsic::memcpy || id == Intrinsic::memset)
@@ -197,23 +183,18 @@ bool KMeldPass::isInitializationCall(CallBase *call, Value *targetValue) {
 }
 
 
-
-// 检查在分支指令后的基本块中是否有初始化
 bool KMeldPass::checkInitializationInSuccessorBlocks(BranchInst *br, CallBase *targetCB) {
     if (!br || !br->isConditional())
         return false;
 
-    // 检查非空分支的目标基本块（通常是if (ptr != null)的分支）
+    // check null-check condition
     BasicBlock *nonNullSucc = getNonNullSuccessor(br, targetCB);
     if (!nonNullSucc)
         return false;
 
-    // 在非空分支的基本块中查找初始化
     return checkInitializationInBasicBlock(nonNullSucc, targetCB);
 }
 
-
-// 获取非空分支的目标基本块
 BasicBlock* KMeldPass::getNonNullSuccessor(BranchInst *br, CallBase *targetCB) {
     if (!br->isConditional()) return nullptr;
 
@@ -223,7 +204,6 @@ BasicBlock* KMeldPass::getNonNullSuccessor(BranchInst *br, CallBase *targetCB) {
     Value *op0 = icmp->getOperand(0);
     Value *op1 = icmp->getOperand(1);
 
-    // 确定哪个分支是非空分支
     bool isNotNullCheck = false;
     BasicBlock *nonNullSucc = nullptr;
 
@@ -241,35 +221,27 @@ BasicBlock* KMeldPass::getNonNullSuccessor(BranchInst *br, CallBase *targetCB) {
     return nonNullSucc;
 }
 
-
-// 在基本块中检查初始化
 bool KMeldPass::checkInitializationInBasicBlock(BasicBlock *bb, CallBase *targetCB) {
     if (!bb)
         return false;
 
-    // 遍历基本块中的指令，查找初始化
     for (auto &inst : *bb) {
-        // 跳过phi节点和无关指令
         if (isa<PHINode>(&inst)) continue;
 
-        // 检查store指令
         if (auto *store = dyn_cast<StoreInst>(&inst)) {
             if (store->getValueOperand() == targetCB) {
                 return true;
             }
         }
 
-        // 检查memcpy/memset调用
         if (auto *call = dyn_cast<CallBase>(&inst)) {
             if (isInitializationCall(call, targetCB)) {
                 return true;
             }
         }
 
-        // 检查通过bitcast后的初始化
         if (auto *bitcast = dyn_cast<BitCastInst>(&inst)) {
             if (bitcast->getOperand(0) == targetCB) {
-                // 检查bitcast后的使用
                 for (auto *user : bitcast->users()) {
                     if (auto *store = dyn_cast<StoreInst>(user)) {
                         if (store->getValueOperand() == bitcast) {
@@ -284,7 +256,6 @@ bool KMeldPass::checkInitializationInBasicBlock(BasicBlock *bb, CallBase *target
             }
         }
 
-        // 如果遇到其他可能改变控制流的指令，停止搜索
         if (isa<BranchInst>(&inst) || isa<ReturnInst>(&inst) ||
             isa<SwitchInst>(&inst) || isa<IndirectBrInst>(&inst))
             break;
@@ -293,22 +264,18 @@ bool KMeldPass::checkInitializationInBasicBlock(BasicBlock *bb, CallBase *target
     return false;
 }
 
-// 检查立即初始化（在当前基本块中）
 bool KMeldPass::checkImmediateInitialization(Instruction *inst, CallBase *targetCB) {
     if (!inst) return false;
 
-    // 检查当前指令及后续指令
     BasicBlock::iterator it(inst);
     while (it != inst->getParent()->end()) {
         Instruction *currentInst = &*it;
         ++it;
 
-        // 检查store指令
         if (auto *storeInst = dyn_cast<StoreInst>(currentInst)) {
             if (storeInst->getValueOperand() == targetCB)
                 return true;
         }
-        // 检查memcpy/memset调用
         if (auto *call = dyn_cast<CallBase>(currentInst)) {
             if (isInitializationCall(call, targetCB))
                 return true;

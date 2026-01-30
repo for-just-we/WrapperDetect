@@ -14,7 +14,6 @@ typedef enum {
 } CLASSATTR;
 
 // support virtual call analysis, using CHA
-// 通过分析子类的构造函数中是否调用其它构造函数并且用了同一个this指针以及vtable写入关系确定类型间的继承关系
 class CppCGPass: public KELPPass {
 private:
     set<string> ClassNames;
@@ -38,10 +37,10 @@ public:
         ID = "cpp call graph pass\n";
     }
 
-    // 进行class hierachy分析
+    // class hierachy analysis
     bool doInitialization(Module*) override;
 
-    // 求解virtual call
+    // virtual call analysis
     void analyzeVirtualCall(CallBase* callInst, FuncSet* FS) override;
 
     // F is a constructor or destructor

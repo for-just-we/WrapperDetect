@@ -1,6 +1,4 @@
-//
-// Created by prophe cheng on 2025/4/9.
-//
+
 
 #ifndef WRAPPERDETECT_ITERATIVEMODULEPASS_H
 #define WRAPPERDETECT_ITERATIVEMODULEPASS_H
@@ -12,10 +10,10 @@
 
 using namespace llvm;
 
-// 主要关注3个函数，doInitialization、doFinalization、doModulePass
-// doInitialization完成type-hierachy分析以及type-propagation
-// doFinalization将结果dump出
-// doModulePass进行间接调用分析
+// 3 important functions，doInitialization、doFinalization、doModulePass
+// doInitialization for type-hierachy and 及type-propagation
+// doFinalization
+// doModulePass
 class IterativeModulePass {
 public:
     unsigned MIdx;

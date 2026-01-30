@@ -1,5 +1,5 @@
 //
-// Created by prophe cheng on 2025/4/10.
+// Created on 2025/4/10.
 //
 
 #include <llvm/IR/InstIterator.h>
@@ -9,7 +9,7 @@ void MLTADFPass::typeConfineInStore(StoreInst* SI) {
     Value* PO = SI->getPointerOperand();
     Value* VO = SI->getValueOperand();
 
-    // 被store的是个function
+    // store a function to func pointer
     Function* CF = getBaseFunction(VO->stripPointerCasts());
     if (!CF) {
         set<Function*> Callees;

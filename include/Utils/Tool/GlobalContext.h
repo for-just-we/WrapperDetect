@@ -1,6 +1,4 @@
-//
-// Created by prophe cheng on 2025/4/9.
-//
+
 
 #ifndef WRAPPERDETECT_GLOBALCONTEXT_H
 #define WRAPPERDETECT_GLOBALCONTEXT_H

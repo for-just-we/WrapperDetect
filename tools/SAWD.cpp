@@ -1,6 +1,4 @@
-//
-// Created by prophe cheng on 2025/4/9.
-//
+
 // Simple Alloc Wrapper Detector
 
 #include <llvm/Support/CommandLine.h>

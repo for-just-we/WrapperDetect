@@ -1,6 +1,4 @@
-//
-// Created by prophe cheng on 2025/4/9.
-//
+
 
 #ifndef WRAPPERDETECT_TYPEDECLS_H
 #define WRAPPERDETECT_TYPEDECLS_H
