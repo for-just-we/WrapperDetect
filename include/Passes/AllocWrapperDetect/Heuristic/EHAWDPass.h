@@ -14,6 +14,9 @@ typedef enum SideEffectType { Store, Call, SysCall } SideEffectType;
 class EHAWDPass: public HAWDPass {
 public:
     map<Function*, set<pair<Instruction*, SideEffectType>>> func2SideEffectOps;
+    map<Function*, set<pair<Instruction*, SideEffectType>>> func2FilteredSideEffectOps;
+    // side-effect ops that dominate every non-NULL return
+    map<Function*, set<pair<Instruction*, SideEffectType>>> func2DomSideEffectOps;
 
     EHAWDPass(GlobalContext* GCtx_): HAWDPass(GCtx_) {
         ID = "simple alloc wrapper detection pass version2";

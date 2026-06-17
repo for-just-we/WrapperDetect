@@ -169,11 +169,11 @@ void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
             // Next layer may not always have a subset of the previous layer
             // because of casting, so let's do intersection
             intersectFuncSets(FS1, *FS, FS2); // FS2 = FS & FS1
-            *FS = FS2; // FS = FS & FS1
             if (FS2.empty()) {
                 ContinueNextLayer = false;
                 break;
             }
+            *FS = FS2; // FS = FS & FS1
             CV = NextV;
 
             // b.a = a2 in test13; B::a not confine to function，marked escaped，B::a not a function field。
@@ -193,6 +193,7 @@ void MLTAPass::analyzeIndCall(CallBase* CI, FuncSet* FS) {
     if (LayerNo > 1) {
         Ctx->NumSecondLayerTypeCalls++;
         Ctx->NumSecondLayerTargets += FS->size();
+        Ctx->secondLayerTypeCalls.insert(CI);
     }
     else {
         Ctx->NumFirstLayerTargets += Ctx->sigFuncsMap[CommonUtil::callHash(CI)].size();

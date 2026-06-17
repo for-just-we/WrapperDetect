@@ -95,12 +95,12 @@ void PrintResults(GlobalContext* GCtx) {
         ostream& output = (IcallOutputFilePath == "cout") ? cout : *(new ofstream(IcallOutputFilePath));
 
         for (auto &curEle: GCtx->Callees) {
-            if (curEle.first->isIndirectCall()) {
+            if (curEle.first->isIndirectCall() && GlobalCtx.secondLayerTypeCalls.count(curEle.first)) {
                 totalsize += curEle.second.size();
                 FuncSet funcs = curEle.second;
 
                 auto* Scope = cast<DIScope>(curEle.first->getDebugLoc().getScope());
-                string callsiteFile = Scope->getFilename().str();
+                string callsiteFile = Scope->getDirectory().str() + "/" + Scope->getFilename().str();
                 int line = curEle.first->getDebugLoc().getLine();
                 int col = curEle.first->getDebugLoc().getCol();
                 string content = callsiteFile + ":" + itostr(line) + ":" + itostr(col) + "|";

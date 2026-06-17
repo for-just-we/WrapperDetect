@@ -49,8 +49,12 @@ bool IntraAWDPass::doModulePass(Module* M) {
             if (!simpleRet)
                 continue;
 
+            // has side-effect dominate all non return-null path
+            if (func2DomSideEffectOps.count(F))
+                continue;
+
             // has side-effect
-            if (func2SideEffectOps.count(F)) {
+            if (func2FilteredSideEffectOps.count(F)) {
                 // generate query for LLM
                 string fileName = getNormalizedPath(F->getSubprogram());
                 string funcName = removeFuncNumberSuffix(F->getName().str());
@@ -76,7 +80,7 @@ bool IntraAWDPass::doModulePass(Module* M) {
                 set<string> directAllocCalled;
                 set<string> indirectAllocCalled;
                 // traverse every side-effect instruction
-                for (pair<Instruction*, SideEffectType> sideEffect: func2SideEffectOps[F]) {
+                for (pair<Instruction*, SideEffectType> sideEffect: func2FilteredSideEffectOps[F]) {
                     if (sideEffect.second == SideEffectType::Store) {
                         sideEffectIgnorable = false;
                         llmEnable = false;

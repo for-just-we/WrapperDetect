@@ -59,6 +59,8 @@ struct GlobalContext {
     unsigned NumConfinedFuncs = 0;
     unsigned NumSimpleIndCalls = 0;
 
+    set<CallBase*> secondLayerTypeCalls;
+
     // 全局变量，将变量的hash值映射为变量对象，只保存有initializer的全局变量
     DenseMap<size_t, GlobalVariable*> Globals;
 

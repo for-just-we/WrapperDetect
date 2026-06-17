@@ -5,6 +5,8 @@
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/CFG.h>
+#include <llvm/IR/Dominators.h>
 #include <queue>
 
 #include "Passes/AllocWrapperDetect/Heuristic/EHAWDPass.h"
@@ -90,6 +92,79 @@ void EHAWDPass::identifySideEffectFunctions() {
 
     }
 
+    // === filter: side-effect only reachable from return NULL ===
+    for (auto& [F, sideEffects] : func2SideEffectOps) {
+        if (F->isDeclaration() || sideEffects.empty())
+            continue;
+
+        set<BasicBlock*> nonNullReturnBlocks;
+        for (inst_iterator it = inst_begin(F), ie = inst_end(F); it != ie; ++it) {
+            if (auto* RI = dyn_cast<ReturnInst>(&*it)) {
+                Value* retVal = RI->getReturnValue();
+                if (retVal && isa<ConstantPointerNull>(retVal))
+                    continue;
+                nonNullReturnBlocks.insert(RI->getParent());
+            }
+        }
+
+        if (nonNullReturnBlocks.empty())
+            continue;
+
+        set<BasicBlock*> canReachNonNull;
+        queue<BasicBlock*> filterWL;
+        for (BasicBlock* BB : nonNullReturnBlocks) {
+            canReachNonNull.insert(BB);
+            filterWL.push(BB);
+        }
+        while (!filterWL.empty()) {
+            BasicBlock* cur = filterWL.front();
+            filterWL.pop();
+            for (BasicBlock* pred : predecessors(cur)) {
+                if (canReachNonNull.insert(pred).second)
+                    filterWL.push(pred);
+            }
+        }
+
+        for (auto& item : sideEffects) {
+            if (canReachNonNull.count(item.first->getParent()))
+                func2FilteredSideEffectOps[F].insert(item);
+        }
+    }
+
+    // === collect: side-effect ops that dominate every non-NULL return ===
+    for (auto& [F, sideEffects] : func2FilteredSideEffectOps) {
+        if (F->isDeclaration() || sideEffects.empty())
+            continue;
+
+        DominatorTree DT(*F);
+
+        vector<ReturnInst*> nonNullReturns;
+        for (inst_iterator it = inst_begin(F), ie = inst_end(F); it != ie; ++it) {
+            if (auto* RI = dyn_cast<ReturnInst>(&*it)) {
+                Value* retVal = RI->getReturnValue();
+                if (retVal && isa<ConstantPointerNull>(retVal))
+                    continue;
+                nonNullReturns.push_back(RI);
+            }
+        }
+
+        if (nonNullReturns.empty())
+            continue;
+
+        for (auto& item : sideEffects) {
+            BasicBlock* itemBB = item.first->getParent();
+            bool domAll = true;
+            for (ReturnInst* RI : nonNullReturns) {
+                if (!DT.dominates(itemBB, RI->getParent())) {
+                    domAll = false;
+                    break;
+                }
+            }
+            if (domAll)
+                func2DomSideEffectOps[F].insert(item);
+        }
+    }
+
     OP << "LLM-enhanced Pass: analyze side-effect function done\n";
 }
 
@@ -133,11 +208,11 @@ bool EHAWDPass::doModulePass(Module* M) {
                 continue;
 
             // if F has side-effect, check whether side-effect affect
-            if (func2SideEffectOps.count(F)) {
+            if (func2FilteredSideEffectOps.count(F)) {
                 // check whether current function load from global variable
                 // count side-effect instructions
                 bool sideEffectIgnorable = true;
-                for (pair<Instruction*, SideEffectType> sideEffect: func2SideEffectOps[F]) {
+                for (pair<Instruction*, SideEffectType> sideEffect: func2FilteredSideEffectOps[F]) {
                     if (sideEffect.second == SideEffectType::Store) {
                         sideEffectIgnorable = false;
                         break;
