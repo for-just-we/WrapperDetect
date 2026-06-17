@@ -49,12 +49,11 @@ bool IntraAWDPass::doModulePass(Module* M) {
             if (!simpleRet)
                 continue;
 
-            // has side-effect dominate all non return-null path
-            if (func2DomSideEffectOps.count(F))
-                continue;
-
             // has side-effect
             if (func2FilteredSideEffectOps.count(F)) {
+                // has side-effect dominate all non return-null path
+                if (func2DomSideEffectOps.count(F))
+                    continue;
                 // generate query for LLM
                 string fileName = getNormalizedPath(F->getSubprogram());
                 string funcName = removeFuncNumberSuffix(F->getName().str());
